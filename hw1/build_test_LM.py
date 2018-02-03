@@ -12,7 +12,7 @@ LANG_TO_INDEX = {
     'tamil': 2
 }
 
-INDEX_TO_LANG = {v: k for k, v in TYPE_TO_INT.items()}
+INDEX_TO_LANG = {v: k for k, v in LANG_TO_INDEX.items()}
 
 def build_LM(in_file):
     """
@@ -33,29 +33,36 @@ def build_LM(in_file):
             # sentence with punctuation removed and all characters converted to lowercase
             s = re.sub('[^a-zA-Z ]', '', line[len(lang) + 1:]).lower()
             # count frequency of appearance for each 4-grams
-            for i in range(len(s)):
-                # Add padding '0' if the end of a sentenece does not have enough characters to form a 4-grams
-                if(i+4 > len(s)):
-                    part = s[i:len(s)] + '0'*(i+4-len(s))
+            for i in range(-3,len(s)):
+                # Use ^ to pad the beginning
+                if i < 0:
+                    part = '^'*(0 - i) + s[0:4+i]
+                # Use # to pad the end
+                elif(i+4 > len(s)):
+                    part = s[i:len(s)] + '#'*(i+4-len(s))
                 else:
                     part = s[i:i+4]
                 # create a new 4-grams record if not exist
                 if part not in lm: 
                     lm[part] = [0,0,0]
+
+                #print("#"+str(i)+" "+part)
                 # add frequency count by 1
                 lm[part][LANG_TO_INDEX[lang]] += 1
                 count[LANG_TO_INDEX[lang]] += 1
+                #print(lm)
+            break
 
     # calculate probability with add-1 smoothing
-    # add the size of the LM to 'token' count since we are going to do add-1 for every 4-grams
+    # add the size of the LM to 'token' count since we are going to do add-1 for every 4-gram
     count = map(lambda x: x + len(lm),count)
 
     new_lm = {}
     for key,value in lm.items():
-        # probability of a 4-grams
+        # probability of a 4-gram
         p = [0, 0, 0]
         for i in range(3):
-            p[i] = (value[i] + 1) * 1.0 / count[i]
+            p[i] = (value[i] + 1.0) / count[i]
         # save it to the final LM
         new_lm[key] = p
 
@@ -72,6 +79,7 @@ def test_LM(in_file, out_file, LM):
 
     with open(in_file, 'r') as testfile:
         for line in testfile:
+            print(line)
             # probability of language(in log)
             p = [0.0, 0.0, 0.0]
             # number of matched 4-grams
@@ -79,23 +87,23 @@ def test_LM(in_file, out_file, LM):
             # sentence with punctuation removed and all characters converted to lowercase
             s = re.sub('[^a-zA-Z ]', '', line).lower()
 
-            # count frequency of appearance for each 4-grams
+            # count frequency of appearance for each 4-gram
             for i in range(len(s)):
-                # Add padding '0' if the end of a sentenece does not have enough characters to form a 4-grams
+                # Add padding '0' if the end of a sentenece does not have enough characters to form a 4-gram
                 if(i+4 > len(s)):
                     part = s[i:len(s)] + '0'*(i+4-len(s))
                 else:
                     part = s[i:i+4]
 
                 if part in LM:
-                    print("HIT: "+part)
-                    print(p,LM[part])
+                    #print("HIT: "+part)
+                    #print(p,LM[part])
                     p = [a + math.log(b) for a, b in zip(p, LM[part])]
-                    print(p)
+                    #print(p)
                     match_count += 1
-                else:
-                    print("MISS:"+part)
-                    print(p)
+                #else:
+                    #print("MISS:"+part)
+                    #print(p)
 
             p = map(lambda x: math.pow(x,2), p)
             print(INDEX_TO_LANG[p.index((max(p)))])
@@ -110,7 +118,8 @@ try:
 except getopt.GetoptError, err:
     usage()
     sys.exit(2)
-for o, a in opts:                                                                                                                                                                                                                          if o == '-b':
+for o, a in opts:
+    if o == '-b':
         input_file_b = a
     elif o == '-t':
         input_file_t = a
@@ -123,4 +132,4 @@ if input_file_b == None or input_file_t == None or output_file == None:
     sys.exit(2)
 
 LM = build_LM(input_file_b)
-test_LM(input_file_t, output_file, LM)
+# test_LM(input_file_t, output_file, LM)
