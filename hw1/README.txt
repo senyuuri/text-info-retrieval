@@ -32,7 +32,7 @@ The testing:
 
 == Statement of individual work ==
 
-I, A0000000X, certify that I have followed the CS 3245 Information
+I, A0144315N, certify that I have followed the CS 3245 Information
 Retrieval class guidelines for homework assignments.  In particular, I
 expressly vow that I have followed the Facebook rule in discussing
 with others in doing the assignment and did not take notes (digital or
