@@ -6,6 +6,9 @@ import glob
 import getopt
 import time
 
+# operator keywords in the order of increasing precedence
+OPWORDS = ['OR','AND','NOT']
+
 def usage():
     print "usage: " + sys.argv[0] + " -i directory-of-documents -d dictionary-file -p postings-file"
 
@@ -14,10 +17,15 @@ def punc_normalise(sent):
     token = token.replace("/",' ')
 
 def parse_query(raw):
-    """Use shunting-yard algorithm to convert query into Reverse Polish notation(RPN)"""
-    # operator keywords in the order of increasing precedence
-    OPWORDS = ['OR','AND','NOT']
-    ORDER = OPWORDS + ['('+')']
+    """Use shunting-yard algorithm to convert query into Reverse Polish notation(RPN)
+    
+    Args:
+        raw: the query string
+
+    Returns:
+        output: a list of operators and operands in RPN order
+    """
+
     # operator stack
     op = []
     # output queue
@@ -25,29 +33,66 @@ def parse_query(raw):
     raw = raw.replace('(',' ( ').replace(')',' ) ').split(' ')
     for r in raw:
         print(r)
-        if r=='(':
-            op.append(r)
-        elif r==')':
-            top = op.pop()
-            while top != '(':
-                output.append(top)
+        if r!='':
+            if r=='(':
+                op.append(r)
+            elif r==')':
                 top = op.pop()
-            op.append(top)
-        elif r not in OPWORDS:
-            output.append(r)
-        else:
-            if len(op) != 0:
-                top = op.pop()
-                while top != '(' and len(op) > 0 and OPWORDS.index(top) >= OPWORDS.index(r):
+                while top != '(':
                     output.append(top)
                     top = op.pop()
-                op.append(top)
-            op.append(r)
+            elif r not in OPWORDS:
+                output.append(r)
+            else:
+                if len(op) != 0:
+                    top = op.pop()
+                    while top != '(' and len(op) > 0 and OPWORDS.index(top) >= OPWORDS.index(r):
+                        output.append(top)
+                        top = op.pop()
+                    op.append(top)
+                op.append(r)
+            print('op:'+str(op))
+            print('output:'+str(output))
+            print('==============')
 
     while(len(op) != 0):
         output.append(op.pop())
 
-    return output
+    return evaluate_query(output)
+
+def evaluate_query(qlist):
+    """Evaluate a boolean query in the form of Reverse Polish notation
+
+    Query is evaluated from left to right.
+    For intermediate result, a special operator "RESULT" will be pushed into the stack.
+
+    Input:
+        qlist: a list of operators and operands in RPN order
+
+    Output:
+        result: a string of docIDs, separated by space
+    """
+    stack = []
+    result = []
+
+    for q in qlist:
+        if q in OPWORDS:
+            if q == 'NOT':
+                op1 = stack.pop()
+                # print('NOT '+op1)
+                # stack.append('NOT '+op1)
+            else:
+                op1 = stack.pop()
+                op2 = stack.pop()
+                if q == 'AND':
+                    
+                elif q == 'OR':
+                    continue
+                # print(op1+' '+q+' '+op2)
+                # stack.append('('+op1+' '+q+' '+op2+')')
+        else:
+            stack.append(q)
+    return stack.pop()
 
 
 
@@ -99,9 +144,9 @@ for f in files:
                 else:
                     # add docID to posting list if it is not inside
                     if docID not in p[t]:
-                        p[t].append(docID) 
-    # print(p)
+                        p[t].append(docID)
 
 print(str(fcount)+" records processed in "+str(time.time() - start_time)+" seconds.")
-query = "bill OR Gates AND (vista OR XP) AND NOT mac"
+#query = "bill OR Gates AND (vista OR XP) AND NOT mac"
+query = "bill AND Gates"
 print(parse_query(query))

@@ -50,3 +50,6 @@ https://stackoverflow.com/questions/33773157/word-tokenize-typeerror-expected-st
 
 [3]Shunting-yard Algorithm
 https://en.wikipedia.org/wiki/Shunting-yard_algorithm
+
+[4]Reverse Polish Notation
+https://en.wikipedia.org/wiki/Reverse_Polish_notation
