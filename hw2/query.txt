@@ -1,0 +1,30 @@
+product
+year
+barley
+product AND year
+product OR year
+product AND barley
+product OR barley
+year AND barley
+year OR barley
+NOT product
+NOT year
+NOT barley
+sustain AND est AND tennis
+(sustain AND est) AND tennis
+sustain AND (est AND tennis)
+tennis AND sustain AND est
+feasible 
+NOT feasible AND bother
+est OR valley
+NOT est
+NOT valley
+NOT (est AND sustain)
+NOT (tennis OR est)
+barley AND NOT (tennis OR est)
+barley AND NOT (est AND sustain)
+product OR NOT (tennis OR est)
+product OR NOT (est AND sustain)
+(product OR year OR barley OR est OR general OR hajim OR inevit OR island)
+(product OR year OR barley OR est OR general OR hajim OR inevit OR island) AND (product OR year OR barley OR est OR general OR hajim OR inevit OR island)
+(product OR year OR barley OR est OR general OR hajim OR inevit OR island) OR (product OR year OR barley OR est OR general OR hajim OR inevit OR island)
