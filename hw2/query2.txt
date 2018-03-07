@@ -1,0 +1,21 @@
+american AND NOT american
+american
+american AND analyst
+american AND assess
+american AND NOT assess
+american OR analyst
+american OR NOT analyst
+american AND analyst AND assess
+(american OR analyst) AND NOT assess
+(american AND NOT assess) OR analyst
+american AND NOT (assess OR analyst)
+(american AND analyst) OR (american AND assess)
+american AND U.S.A
+employee AND company AND PROFIT
+profit AND loss
+loss AND NOT profit
+loss
+profit
+marketing AND expenses
+revenue AND sales
+meet AND quota
