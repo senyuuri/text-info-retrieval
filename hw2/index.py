@@ -5,15 +5,10 @@ import sys
 import glob
 import getopt
 import time
+import copy
 
 # operator keywords in the order of increasing precedence
 OPWORDS = ['OR','AND','NOT']
-
-# TODO metadata to be read from the 1st line of dictionary.txt
-# range of docIDs used for indexing
-DOCID_MIN = 1
-DOCID_MAX = 10158
-
 
 def usage():
     print "usage: " + sys.argv[0] + " -i directory-of-documents -d dictionary-file -p postings-file"
@@ -33,28 +28,33 @@ def get_posting(keyword):
         return []
 
 
-def evaluate_NOT(q):
+def evaluate_NOT(p):
     """Evaluate NOT operation on a postings list"""
-    if len(q) == 0:
+    if len(p) == 0:
         return doclist
     else:
         result = []
-        tmp_doclist = doclist
-        while len(tmp_doclist) != 0 and len(q) != 0:
-            if tmp_doclist[0] == q[0]:
-                q.pop(0)
-                tmp_doclist.pop(0)
-            elif tmp_doclist[0] < q[0]:
-                result.append(tmp_doclist.pop(0))
+        cursor_p = 0
+        cursor_doc = 0
+        while cursor_doc < len(doclist) and cursor_p < len(p):
+            #print("c_doc:"+str(cursor_doc)+" c_p:"+str(cursor_p)+" docid:"+str(doclist[cursor_doc])+" pid:"+str(p[cursor_p]))
+            if doclist[cursor_doc] == p[cursor_p]:
+                cursor_p += 1
+                cursor_doc += 1
+            elif doclist[cursor_doc] < p[cursor_p]:
+                result.append(doclist[cursor_doc])
+                cursor_doc += 1
             else:
-                result.append(q.pop(0))
+                result.append(p[cursor_p])
+                cursor_p += 1
 
-        # pop remaining items in doclist
-        while len(tmp_doclist) != 0:
-            result.append(tmp_doclist.pop(0))
-        print('evaluated NOT: ' + str(len(result)) + ' results')
-        print(result)
-        print('===================')
+        # add remaining items from doclist
+        while cursor_doc < len(doclist):
+            result.append(doclist[cursor_doc])
+            cursor_doc += 1
+
+        # print('evaluated NOT: ' + str(len(result)) + ' results')
+        # print('===================')
         return result
 
 
@@ -65,17 +65,20 @@ def evaluate_AND(p1, p2):
         return []
     else:
         result = []
-        while len(p1) != 0 and len(p2) != 0:
-            if p1[0] == p2[0]:
-                result.append(p1.pop(0))
-                p2.pop(0)
-            elif p1[0] < p2[0]:
-                p1.pop(0)
+        cursor_p1 = 0
+        cursor_p2 = 0
+        while cursor_p1 < len(p1) and cursor_p2 < len(p2):
+            if p1[cursor_p1] == p2[cursor_p2]:
+                result.append(p1[cursor_p1])
+                cursor_p1 += 1
+                cursor_p2 += 1
+            elif p1[cursor_p1] < p2[cursor_p2]:
+                cursor_p1 += 1
             else:
-                p2.pop(0)
-        print('evaluated AND: ' + str(len(result)) + ' results')
-        print(result)
-        print('===================')
+                cursor_p2 += 1
+        # print('evaluated AND: ' + str(len(result)) + ' results')
+        # print(result)
+        # print('===================')
         return result
 
 
@@ -88,25 +91,33 @@ def evaluate_OR(p1, p2):
         return p1
     else:
         result = []
-        while len(p1) != 0 and len(p2) != 0:
-            if p1[0] == p2[0]:
-                result.append(p1.pop(0))
-                p2.pop(0)
-            elif p1[0] < p2[0]:
-                result.append(p1.pop(0))
+        cursor_p1 = 0
+        cursor_p2 = 0
+        while cursor_p1 < len(p1) and cursor_p2 < len(p2):
+            if p1[cursor_p1] == p2[cursor_p2]:
+                result.append(p1[cursor_p1])
+                cursor_p1 += 1
+                cursor_p2 += 1
+            elif p1[cursor_p1] < p2[cursor_p2]:
+                result.append(p1[cursor_p1])
+                cursor_p1 += 1
             else:
-                result.append(p2.pop(0))
+                result.append(p2[cursor_p2])
+                cursor_p2 += 1
 
         # add all remaining docIDs to result
-        while len(p1) != 0:
-            result.append(p1.pop(0))
-        while len(p2) != 0:
-            result.append(p2.pop(0))
+        while cursor_p1 < len(p1):
+            result.append(p1[cursor_p1])
+            cursor_p1 += 1
+        while cursor_p2 < len(p2):
+            result.append(p2[cursor_p2])
+            cursor_p2 += 1
 
-        print('evaluated OR: ' + str(len(result)) + ' results')
-        print(result)
-        print('===================')
+        # print('evaluated OR: ' + str(len(result)) + ' results')
+        # print(result)
+        # print('===================')
         return result
+
 
 def parse_query(raw):
     """Use shunting-yard algorithm to convert query into Reverse Polish notation(RPN)
@@ -124,7 +135,6 @@ def parse_query(raw):
     output = []
     raw = raw.replace('(',' ( ').replace(')',' ) ').split(' ')
     for r in raw:
-        print(r)
         if r!='':
             if r=='(':
                 op.append(r)
@@ -148,9 +158,9 @@ def parse_query(raw):
                         top = op.pop()
                     op.append(top)
                 op.append(r)
-            print('op:'+str(op))
-            print('output:'+str(output))
-            print('==============')
+            # print('op:'+str(op))
+            # print('output:'+str(output))
+            # print('==============')
 
     while(len(op) != 0):
         output.append(op.pop())
@@ -177,30 +187,29 @@ def evaluate_query(qlist):
         if q in OPWORDS:
             if q == 'NOT':
                 op1 = stack.pop()
-                print('plist:'+str(op1))
-                print('doclist:'+str(doclist))
-                stack.append(evaluate_NOT(op1))
+                # print('plist:'+str(op1))
+                # print('doclist')
+                result = evaluate_NOT(op1)
+                stack.append(result)
             else:
                 op1 = stack.pop()
                 op2 = stack.pop()
-                plist1 = op1 if type(op1)==list else get_posting(op1)
-                plist2 = op2 if type(op2)==list else get_posting(op2)
-                print('plist1:'+str(plist1))
-                print('plist2:'+str(plist2))
+                # print('plist1:'+str(op1))
+                # print('plist2:'+str(op2))
                 if q == 'AND':
-                    stack.append(evaluate_AND(plist1, plist2))
+                    stack.append(evaluate_AND(op1, op2))
                 elif q == 'OR':
-                    stack.append(evaluate_OR(plist1, plist2))
+                    stack.append(evaluate_OR(op1, op2))
         else:
             # operator, get postings from dictionary 
             q = porter.stem(q.lower())
             print(q)
             plist = [] if q not in postings else postings[q]
-            if q in postings:
-                print('Retrieving posting for '+q+':' + str(postings[q]))
-            else:
-                print('No record for '+q)
-            print('==============')
+            # if q in postings:
+            #     print('Retrieving posting for '+q+':' + str(postings[q]))
+            # else:
+            #     print('No record for '+q)
+            # print('==============')
             stack.append(plist)
     return stack.pop()
 
@@ -242,12 +251,14 @@ for f in files:
     docID = f.split('/')[-1]
     # TESTING ONLY
     fcount += 1
-    if fcount > 10:
-        break
+    # if fcount > 1000:
+    #     break
+    if fcount % 1000 == 0:
+        print(str(fcount)+' files processed......')
+    #     break
 
     doclist.append(docID)
     
-
     with open(f, 'r') as fopen:
         for sent in nltk.sent_tokenize(fopen.read()):
             tokens = nltk.word_tokenize(sent)
@@ -261,15 +272,36 @@ for f in files:
                     if docID not in postings[t]:
                         postings[t].append(docID)
 
-    # sort docIDs in posting list
-    for key in postings:
-        postings[key].sort()
-    # sort docID list
-    doclist.sort()
+# sort docIDs in posting list
+for key in postings:
+    postings[key] = [int(x) for x in postings[key]]
+    postings[key].sort()
+# sort docID list
+doclist = [int(x) for x in doclist]
+doclist.sort()
 
 print(str(fcount)+" records processed in "+str(time.time() - start_time)+" seconds.")
-#query = "bill OR Gates AND (vista OR XP) AND NOT mac"
-print('Indexed docID:'+str(doclist))
-print(postings)
-query = "as OR NOT again"
-print(parse_query(query))
+# print('Indexed docID:'+str(doclist))
+
+# query = 'american AND NOT american'
+
+# result = parse_query(query)
+# result.sort()
+# print(result)
+with open('query2.txt', 'r') as fq:
+    with open('myout2.txt', 'w') as fout:
+        lines = fq.readlines()
+        count = 0
+        for line in lines:
+            count += 1
+            # if count > 1:
+            #     break
+            print('==============================================')
+            query = line.replace('\n', ' ').replace('\r', '')
+            print("querying: "+ query)
+            raw = parse_query(query)
+            result = [int(x) for x in raw]
+            result.sort()
+            print("result:"+str(result))
+            fout.write(" ".join([str(x) for x in result]))
+            fout.write("\n")
