@@ -14,11 +14,6 @@ def usage():
     print "usage: " + sys.argv[0] + " -i directory-of-documents -d dictionary-file -p postings-file"
 
 
-def punc_normalise(sent):
-    """Normalise punctuations"""
-    token = token.replace("/",' ')
-
-
 def get_posting(keyword):
     """Get the posting list by keyword"""
     # TODO implement disk-based postings indexing
@@ -261,6 +256,8 @@ for f in files:
     
     with open(f, 'r') as fopen:
         for sent in nltk.sent_tokenize(fopen.read()):
+            # remove common punctuations
+            sent = sent.replace(',',' ').replace('.',' ').replace('\'',' ')
             tokens = nltk.word_tokenize(sent)
             for t in tokens:
                 t = porter.stem(t.lower()).encode("ascii")
