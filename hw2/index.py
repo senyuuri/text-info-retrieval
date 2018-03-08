@@ -98,18 +98,14 @@ with open(output_file_postings, 'w') as fp:
         for i in range(len(p_list)):
             # this is a node with skip pointer
             if (i % interval == 0) and (i != len(p_list) - 1):
+
                 # add special tag '#' to indicate that the following node is a skip pointer
                 skip_list.append('#'+str(p_list[i]))
                 # docID in which the skip pointer is pointing to  
                 skip_index = (i + interval) if (i + interval < len(p_list)) else (len(p_list) - 1)
                 doc_id = p_list[skip_index]
-                # offset from the end of this skip pointer to the 1st char of the desination node
-                offset = 0
-                for j in range(i+1, skip_index):
-                    # +1 to include delimiter ','
-                    offset += len(str(p_list[j])) + 1
-                # +1 to move to the 1st char of the next node 
-                offset += 1
+                # offset to the skip destination
+                offset = interval
                 # skip pointer format: !docID!offset 
                 skip_list.append('!'+str(doc_id)+'!'+str(offset))
             else:

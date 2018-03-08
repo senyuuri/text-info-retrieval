@@ -1,32 +1,37 @@
 This is the README file for A0144315N's submission
 
 == Python Version ==
+I'm using Python Version 2.7.12 for this assignment.
 
-I'm using Python Version 2.7.12 for
-this assignment.
 
 == General Notes about this assignment ==
+dictionary format: (dictionary.txt)
+[line 1]: a list of indexed docIDs
+[line 2 and above]: dictionary entries in the format of 
+(keyword, frequency ,offset to the beginning of postings.txt(in bytes))
 
+postings list format: (postings.txt)
+Each line in the postings list corresponds to a same line entry in the dictionary file. 
+A special tag '#' is to indicate that a node has a skip pointer which is the next 
+adjacent node. Skip pointers are in the format of "!next_docID!offset". The offset is
+measured in the number of entries to be skipped after this skip pointer. 
+For example: "#3092,!3122!2" means the node of docID 3092 has a skip pointer pointing to
+docID 3122, which is 2 nodes away from the skip pointer itself. 
 
-python index.py -i /mnt/c/Users/senyu/workspace/cs3245-information-retrieval/nltk_data/corpora/reuters/training/ -d dictionary.txt -p postings.txt
+The search code uses a customised shunting-yard algorithm to parse the query to Reverse
+Polish Notation(RPN). The dictionary file is fully loaded into the memory at startup while 
+the postings list is kept on disk and only a specific portion is loaded into memory 
+when a keyword is queried.
 
-
-
-
-Give an overview of your program, describe the important algorithms/steps 
-in your program, and discuss your experiments in general.  A few paragraphs 
-are usually sufficient.
 
 == Files included with this submission ==
+index.py: for indexing
+search.py: for searching
+dictionary.txt: indexed dictionary file
+postings.txt: indexed postings list 
 
-List the files in your submission here and provide a short 1 line
-description of each file.  Make sure your submission's files are named
-and formatted correctly.
 
 == Statement of individual work ==
-
-Please initial one of the following statements.
-
 I, A0144315N, certify that I have followed the CS 3245 Information
 Retrieval class guidelines for homework assignments.  In particular, I
 expressly vow that I have followed the Facebook rule in discussing
@@ -34,14 +39,10 @@ with others in doing the assignment and did not take notes (digital or
 printed) from the discussions.  
 
 I suggest that I should be graded as follows:
+A ～ A-
 
-<Please fill in>
 
 == References ==
-
-<Please list any websites and/or people you consulted with for this
-assignment and state their role>
-
 [1]NLTK Howto: 3.Processing Raw Text
 http://www.nltk.org/book/ch03.html
 
