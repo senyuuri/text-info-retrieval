@@ -6,6 +6,7 @@ import glob
 import getopt
 import time
 import pickle
+import math
 
 def usage():
     print "usage: " + sys.argv[0] + " -i directory-of-documents -d dictionary-file -p postings-file"
@@ -89,9 +90,33 @@ dictionary = {}
 # save postings list to file
 with open(output_file_postings, 'w') as fp:
     for key, p_list in postings.items():
-        # get current write cursor position
+        # get initial write cursor position
         w_cursor = fp.tell()
-        fp.write(','.join([str(x) for x in p_list]))
+        # add skip pointers
+        skip_list = []
+        interval = int(math.floor(math.sqrt(len(p_list))))
+        for i in range(len(p_list)):
+            # this is a node with skip pointer
+            if (i % interval == 0) and (i != len(p_list) - 1):
+                # add special tag '#' to indicate that the following node is a skip pointer
+                skip_list.append('#'+str(p_list[i]))
+                # docID in which the skip pointer is pointing to  
+                skip_index = (i + interval) if (i + interval < len(p_list)) else (len(p_list) - 1)
+                doc_id = p_list[skip_index]
+                # offset from the end of this skip pointer to the 1st char of the desination node
+                offset = 0
+                for j in range(i+1, skip_index):
+                    # +1 to include delimiter ','
+                    offset += len(str(p_list[j])) + 1
+                # +1 to move to the 1st char of the next node 
+                offset += 1
+                # skip pointer format: !docID!offset 
+                skip_list.append('!'+str(doc_id)+'!'+str(offset))
+            else:
+                # normal node
+                skip_list.append(str(p_list[i]))
+
+        fp.write(','.join(skip_list))
         fp.write('\n')
         dictionary[key] = [len(p_list), w_cursor]
 
