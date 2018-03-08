@@ -5,114 +5,44 @@ import sys
 import glob
 import getopt
 import time
+import pdb
+import string
 from abc import ABCMeta, abstractmethod
 
 # operator keywords in the order of increasing precedence
 OPWORDS = ['OR','AND','NOT']
 
-class PLlist:
-    """Abstract wrapper class for on-disk postings list and in-memory intermediate result"""
-    __metaclass__ = ABCMeta
-
-    @abstractmethod
-    def get(self):
-        """return the docID in which the cursor is pointing to"""
-        pass
-
-    @abstractmethod
-    def move(self):
-        """move the cursor to the next adjacent docID"""
-        pass
-
-    @abstractmethod
-    def move_or_skip(self, x):
-        """given a larger value x from another list, move or skip to the next docID"""
-        pass
-
-    @abstractmethod
-    def has_next(self):
-        """return true if the cursor has not reached to the end of the list"""
-        pass
-
-
-class PListMemory(PList):
-    """Wrapper class for operations on in-memory docID list(the intermediate result)"""
-    def __init__(self, plist):
-        self.plist = plist 
-        self.cursor = 0
-
-    def get(self):
-        return self.plist[self.cursor]
-
-    def move(self):
-        return self.cursor += 1
-
-    def move_or_skip(self, x):
-        # in-memory list has no skip pointer
-        return self.move()
-
-    def has_next(self):
-        return self.cursor < len(self.plist)
-
-
-class PListDisk(PList):
-     """Wrapper class for reading postings list from disk"""
-    def __init__(self, fin, offset):
-        # file handler of postings_file
-        self.fin = fopen
-        # read() offset
-        self.cursor = offset
-        # is current node a skip pointer
-        self.is_pointer = False
-
-    def get(self):
-        self.fin.seek(self.cursor)
-        start_offset = self.cursor
-        docID = ''
-        # read the first character of the docID
-        char = self.fin.read(1)
-        if char == '#':
-            # the current docID node has a skip pointer
-            self.is_pointer = True
-        # read the rest of the docID
-        while char != ',' and char != '\n':
-            docID += char
-            char = self.fin.read(1)
-        # restore to start offset
-        self.cursor = start_offset
-        print("read:"+docID)
-        return int(docID)
-
-    def move(self):
-        return self.cursor += 1
-
-    def move_or_skip(self, x):
-        # in-memory list has no skip pointer
-        return self.move()
-
-    def has_next(self):
-        return self.cursor < len(self.plist)
-
+all=string.maketrans('','')
+nodigs=all.translate(all, string.digits)
 
 def evaluate_NOT(p):
-    """Evaluate NOT operation on a postings list"""
+    """Evaluate NOT operation on a postings list
+
+    Skip pointers are ignored here since NOT needs to iterate through both the postings list and the docID list."""
     if len(p) == 0:
         return doclist
     else:
         result = []
         cursor_p = 0
         cursor_doc = 0
+        docid_p = int(str(p[cursor_p]).replace('#',''))
         while cursor_doc < len(doclist) and cursor_p < len(p):
-            #print("c_doc:"+str(cursor_doc)+" c_p:"+str(cursor_p)+" docid:"+str(doclist[cursor_doc])+" pid:"+str(p[cursor_p]))
-            if doclist[cursor_doc] == p[cursor_p]:
-                cursor_p += 1
+            if doclist[cursor_doc] == docid_p:
+                # since we ignores skip pointers in NOT queries,
+                # if the current docID has a skip pointer(start with '#'),
+                # advance cursor_p by 2 to ignore the skip pointer
+                cursor_p += 2 if str(p[cursor_p])[0] == '#' else 1
+                # docID list is in-memory so we can simply add 1
                 cursor_doc += 1
             elif doclist[cursor_doc] < p[cursor_p]:
                 result.append(doclist[cursor_doc])
                 cursor_doc += 1
             else:
-                result.append(p[cursor_p])
-                cursor_p += 1
+                result.append(docid_p)
+                cursor_p += 2 if p[cursor_p][0] == '#' else 1
+            if cursor_doc < len(doclist) and cursor_p < len(p):
+                docid_p = int(str(p[cursor_p]).replace('#',''))
+            # print(str(cursor_p)+' '+str(cursor_doc)+' '+str(docid_p)+' '+str(doclist[cursor_doc]))
 
         # add remaining items from doclist
         while cursor_doc < len(doclist):
@@ -149,35 +79,50 @@ def evaluate_AND(p1, p2):
 
 
 def evaluate_OR(p1, p2):
-    """Evaluate OR operation on a postings list"""
-    # TODO use skip pointer
+    """Evaluate OR operation on a postings list
+
+    Skip pointers are ignored here since OR needs to iterate through both lists.
+    """
     if len(p1) == 0:
         return p2
     elif len(p2) == 0:
         return p1
     else:
+        # pdb.set_trace()
         result = []
         cursor_p1 = 0
         cursor_p2 = 0
+        
+        # remove '#' from a docID
+        docid_p1 = int(str(p1[cursor_p1]).replace('#',''))
+        docid_p2 = int(str(p2[cursor_p2]).replace('#',''))
         while cursor_p1 < len(p1) and cursor_p2 < len(p2):
-            if p1[cursor_p1] == p2[cursor_p2]:
-                result.append(p1[cursor_p1])
-                cursor_p1 += 1
-                cursor_p2 += 1
-            elif p1[cursor_p1] < p2[cursor_p2]:
-                result.append(p1[cursor_p1])
-                cursor_p1 += 1
+            if docid_p1 == docid_p2:
+                result.append(docid_p1)
+                # ignore skip pointers
+                cursor_p1 += 2 if str(p1[cursor_p1])[0] == '#' else 1
+                cursor_p2 += 2 if str(p2[cursor_p2])[0] == "#" else 1
+            elif docid_p1 < docid_p2:
+                result.append(docid_p1)
+                cursor_p1 += 2 if str(p1[cursor_p1])[0] == '#' else 1
             else:
-                result.append(p2[cursor_p2])
-                cursor_p2 += 1
+                result.append(docid_p2)
+                cursor_p2 += 2 if str(p2[cursor_p2])[0] == "#" else 1
+
+            if cursor_p1 < len(p1) and cursor_p2 < len(p2):
+                docid_p1 = int(str(p1[cursor_p1]).replace('#',''))
+                docid_p2 = int(str(p2[cursor_p2]).replace('#',''))
+                # print('c_p1:'+str(cursor_p1)+' c_p2:'+str(cursor_p2))
+                # print(str(p1[cursor_p1])+' '+str(type(p1[cursor_p1])))
+                # print(str(p2[cursor_p2])+' '+str(type(p2[cursor_p2])))
 
         # add all remaining docIDs to result
         while cursor_p1 < len(p1):
             result.append(p1[cursor_p1])
-            cursor_p1 += 1
+            cursor_p1 += 2 if str(p1[cursor_p1])[0] == '#' else 1
         while cursor_p2 < len(p2):
             result.append(p2[cursor_p2])
-            cursor_p2 += 1
+            cursor_p2 += 2 if str(p2[cursor_p2])[0] == "#" else 1
 
         # print('evaluated OR: ' + str(len(result)) + ' results')
         # print(result)
@@ -249,37 +194,38 @@ def evaluate_query(qlist):
     stack = []
     result = []
 
-    for q in qlist:
-        if q in OPWORDS:
-            if q == 'NOT':
-                op1 = stack.pop()
-                # print('plist:'+str(op1))
-                # print('doclist')
-                result = evaluate_NOT(op1)
-                stack.append(result)
+    with open(postings_file,'r') as fp:
+        for q in qlist:
+            if q in OPWORDS:
+                if q == 'NOT':
+                    op1 = stack.pop()
+                    # print('plist:'+str(op1))
+                    # print('doclist')
+                    result = evaluate_NOT(op1)
+                    stack.append(result)
+                else:
+                    op1 = stack.pop()
+                    op2 = stack.pop()
+                    # print('plist1:'+str(op1))
+                    # print('plist2:'+str(op2))
+                    if q == 'AND':
+                        stack.append(evaluate_AND(op1, op2))
+                    elif q == 'OR':
+                        stack.append(evaluate_OR(op1, op2))
             else:
-                op1 = stack.pop()
-                op2 = stack.pop()
-                # print('plist1:'+str(op1))
-                # print('plist2:'+str(op2))
-                if q == 'AND':
-                    stack.append(evaluate_AND(op1, op2))
-                elif q == 'OR':
-                    stack.append(evaluate_OR(op1, op2))
-        else:
-            # operator, get postings from disk
-            q = porter.stem(q.lower())
-            print(q)
-            if q in d:
-                # read postings list from disk
-                # set read cursor as offset from the beginning of the file
-                fp.seek(d[q][1], 0)
-                line = fp.readline()
-                plist = [int(x) for x in line.split(',')]
-            else:
-                plist = []
-            
-            stack.append(plist)
+                # operator, get postings from disk
+                q = porter.stem(q.lower())
+                print(q)
+                if q in d:
+                    # read postings list from disk
+                    # set read cursor as offset from the beginning of the file
+                    fp.seek(d[q][1], 0)
+                    plist = fp.readline().replace('\n','').split(',')
+                    print(plist)
+                else:
+                    plist = []
+                
+                stack.append(plist)
 
     return stack.pop()
 
@@ -289,7 +235,7 @@ def usage():
     print "usage: " + sys.argv[0] + " -d dictionary-file -p postings-file -q file-of-queries -o output-file-of-results"
 
 dictionary_file = postings_file = file_of_queries = output_file_of_results = None
-	
+    
 try:
     opts, args = getopt.getopt(sys.argv[1:], 'd:p:q:o:')
 except getopt.GetoptError, err:
@@ -331,18 +277,19 @@ with open(dictionary_file, 'r') as fd:
 
 start_time = time.time()
 # process query
-with open(file_of_queries, 'r') as fq:
-    with open(file_of_output, 'w') as fout:
-        lines = fq.readlines()
-        for line in lines:
-            print('==============================================')
-            query = line.replace('\n', ' ').replace('\r', '')
-            print("querying: "+ query)
-            raw = parse_query(query)
-            result = [int(x) for x in raw]
-            result.sort()
-            print("result:"+str(result))
-            fout.write(" ".join([str(x) for x in result]))
-            fout.write("\n")
+# with open(file_of_queries, 'r') as fq:
+#     with open(file_of_output, 'w') as fout:
+#         lines = fq.readlines()
+#         for line in lines:
+#             print('==============================================')
+#             query = line.replace('\n', ' ').replace('\r', '')
+#             print("querying: "+ query)
+#             raw = parse_query(query)
+#             result = [int(x) for x in raw]
+#             result.sort()
+#             print("result:"+str(result))
+#             fout.write(" ".join([str(x) for x in result]))
+#             fout.write("\n")
 
-        print(str(len(lines))+" queries processed in "+str(time.time() - start_time)+" seconds.")
+#         print(str(len(lines))+" queries processed in "+str(time.time() - start_time)+" seconds.")
+print(parse_query('american OR NOT analyst'))
