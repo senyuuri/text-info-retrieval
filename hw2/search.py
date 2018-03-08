@@ -5,10 +5,93 @@ import sys
 import glob
 import getopt
 import time
-import pickle
+from abc import ABCMeta, abstractmethod
 
 # operator keywords in the order of increasing precedence
 OPWORDS = ['OR','AND','NOT']
+
+class PLlist:
+    """Abstract wrapper class for on-disk postings list and in-memory intermediate result"""
+    __metaclass__ = ABCMeta
+
+    @abstractmethod
+    def get(self):
+        """return the docID in which the cursor is pointing to"""
+        pass
+
+    @abstractmethod
+    def move(self):
+        """move the cursor to the next adjacent docID"""
+        pass
+
+    @abstractmethod
+    def move_or_skip(self, x):
+        """given a larger value x from another list, move or skip to the next docID"""
+        pass
+
+    @abstractmethod
+    def has_next(self):
+        """return true if the cursor has not reached to the end of the list"""
+        pass
+
+
+class PListMemory(PList):
+    """Wrapper class for operations on in-memory docID list(the intermediate result)"""
+    def __init__(self, plist):
+        self.plist = plist 
+        self.cursor = 0
+
+    def get(self):
+        return self.plist[self.cursor]
+
+    def move(self):
+        return self.cursor += 1
+
+    def move_or_skip(self, x):
+        # in-memory list has no skip pointer
+        return self.move()
+
+    def has_next(self):
+        return self.cursor < len(self.plist)
+
+
+class PListDisk(PList):
+     """Wrapper class for reading postings list from disk"""
+    def __init__(self, fin, offset):
+        # file handler of postings_file
+        self.fin = fopen
+        # read() offset
+        self.cursor = offset
+        # is current node a skip pointer
+        self.is_pointer = False
+
+    def get(self):
+        self.fin.seek(self.cursor)
+        start_offset = self.cursor
+        docID = ''
+        # read the first character of the docID
+        char = self.fin.read(1)
+        if char == '#':
+            # the current docID node has a skip pointer
+            self.is_pointer = True
+        # read the rest of the docID
+        while char != ',' and char != '\n':
+            docID += char
+            char = self.fin.read(1)
+        # restore to start offset
+        self.cursor = start_offset
+        print("read:"+docID)
+        return int(docID)
+
+    def move(self):
+        return self.cursor += 1
+
+    def move_or_skip(self, x):
+        # in-memory list has no skip pointer
+        return self.move()
+
+    def has_next(self):
+        return self.cursor < len(self.plist)
 
 
 def evaluate_NOT(p):
@@ -166,38 +249,37 @@ def evaluate_query(qlist):
     stack = []
     result = []
 
-    with open(postings_file, 'r') as fp:
-        for q in qlist:
-            if q in OPWORDS:
-                if q == 'NOT':
-                    op1 = stack.pop()
-                    # print('plist:'+str(op1))
-                    # print('doclist')
-                    result = evaluate_NOT(op1)
-                    stack.append(result)
-                else:
-                    op1 = stack.pop()
-                    op2 = stack.pop()
-                    # print('plist1:'+str(op1))
-                    # print('plist2:'+str(op2))
-                    if q == 'AND':
-                        stack.append(evaluate_AND(op1, op2))
-                    elif q == 'OR':
-                        stack.append(evaluate_OR(op1, op2))
+    for q in qlist:
+        if q in OPWORDS:
+            if q == 'NOT':
+                op1 = stack.pop()
+                # print('plist:'+str(op1))
+                # print('doclist')
+                result = evaluate_NOT(op1)
+                stack.append(result)
             else:
-                # operator, get postings from disk
-                q = porter.stem(q.lower())
-                print(q)
-                if q in d:
-                    # read postings list from disk
-                    # set read cursor as offset from the beginning of the file
-                    fp.seek(d[q][1], 0)
-                    line = fp.readline()
-                    plist = [int(x) for x in line.split(',')]
-                else:
-                    plist = []
-                
-                stack.append(plist)
+                op1 = stack.pop()
+                op2 = stack.pop()
+                # print('plist1:'+str(op1))
+                # print('plist2:'+str(op2))
+                if q == 'AND':
+                    stack.append(evaluate_AND(op1, op2))
+                elif q == 'OR':
+                    stack.append(evaluate_OR(op1, op2))
+        else:
+            # operator, get postings from disk
+            q = porter.stem(q.lower())
+            print(q)
+            if q in d:
+                # read postings list from disk
+                # set read cursor as offset from the beginning of the file
+                fp.seek(d[q][1], 0)
+                line = fp.readline()
+                plist = [int(x) for x in line.split(',')]
+            else:
+                plist = []
+            
+            stack.append(plist)
 
     return stack.pop()
 
