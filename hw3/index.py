@@ -193,44 +193,30 @@ for query in queries:
         heapq.heappush(h, (score[i], doclist[i][0]))
 
     # return top 10 components of scores
-    print(heapq.nlargest(10, h))
+    result = heapq.nlargest(10, h)
+
+    print(" ".join([str(x[1]) for x in result]))
 
 
-# dictionary to be saved 
-# dictionary = {}
+# # dictionary to be saved 
+# dictionary = []
 
-# save postings list to file
+# # save postings list to file
 # with open(output_file_postings, 'w') as fp:
-#     for key, p_list in postings.items():
-#         # get initial write cursor position
+#     for term, plist in postings.items():
+#         # get write cursor position
 #         w_cursor = fp.tell()
-#         # add skip pointers
-#         skip_list = []
-#         interval = int(math.floor(math.sqrt(len(p_list))))
-#         for i in range(len(p_list)):
-#             # this is a node with skip pointer
-#             if (i % interval == 0) and (i != len(p_list) - 1):
-
-#                 # add special tag '#' to indicate that the following node is a skip pointer
-#                 skip_list.append('#'+str(p_list[i]))
-#                 # docID in which the skip pointer is pointing to  
-#                 skip_index = (i + interval) if (i + interval < len(p_list)) else (len(p_list) - 1)
-#                 doc_id = p_list[skip_index]
-#                 # offset to the skip destination
-#                 offset = interval
-#                 # skip pointer format: !docID!offset 
-#                 skip_list.append('!'+str(doc_id)+'!'+str(offset))
-#             else:
-#                 # normal node
-#                 skip_list.append(str(p_list[i]))
-
-#         fp.write(','.join(skip_list))
+#         # each dictionary entry contains: term, df, pointer to postings file
+#         dictionary.append([term, len(plist), w_cursor])
+#         # write postings list to file
+#         raw = [str(p[0])+','+str(p[1]) for p in plist]
+#         line = ';'.join(raw)
+#         fp.write(line)
 #         fp.write('\n')
-#         dictionary[key] = [len(p_list), w_cursor]
 
 # # save dictionary to file
 # with open(output_file_dictionary, 'w') as fd:
-#     # write the list of docIDs in the first line
-#     fd.write(','.join([str(x) for x in doclist]) + '\n')
-#     for key, value in dictionary.items():
-#         fd.write(key + ',' + str(value[0]) + ',' + str(value[1]) + '\n')
+#     # write document list and their lengths in the first line
+#     fd.write(';'.join([str(x[0])+','+str(x[1]) for x in doclist]) + '\n')
+#     for d in dictionary:
+#         fd.write(','.join([str(x) for x in d]) + '\n')
