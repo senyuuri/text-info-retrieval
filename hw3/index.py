@@ -7,7 +7,8 @@ import getopt
 import time
 import pickle
 import math
-
+import heapq
+from operator import itemgetter
 
 DEBUG = True
 
@@ -44,24 +45,20 @@ postings = {}
 porter = nltk.PorterStemmer()
 # get the list of files inside the input directory
 files = glob.glob(input_directory + "*")
-# list of indexed documents 
+# list of indexed documents and their corresponding 'length' for cosine normalisation
 doclist = []
-# list of document length for cosine normalisation
-lenlist = []
 fcount = 0
 
 for f in files:
     docID = int(f.split('/')[-1])
     # TESTING ONLY
     fcount += 1
-    if DEBUG:
-        if fcount > 2:
-            break
+    # if DEBUG:
+    #     if fcount > 20:
+    #         break
 
     if fcount % 1000 == 0:
         print(str(fcount)+' files processed......')
-    #     break
-    doclist.append(docID)
     
     # index each file
     with open(f, 'r') as fopen:
@@ -70,7 +67,7 @@ for f in files:
 
         for sent in nltk.sent_tokenize(fopen.read()):
             # remove common punctuations
-            sent = sent.replace(',',' ').replace('.',' ').replace('\'',' ')
+            sent = sent.replace(',',' ').replace('\'',' ')
             tokens = nltk.word_tokenize(sent)
             for t in tokens:
                 t = porter.stem(t.lower()).encode("ascii")
@@ -102,7 +99,6 @@ for f in files:
                 if plist[0] == docID:
                     freq = plist[1]
 
-            print(t, freq, 1+math.log(freq, 10),tf_log_sum)
             # bulletproof code. This should never happen!
             if freq == None:
                 raise LookupError("Term '" + t + "'not found in the postings list. Not good:(")
@@ -110,27 +106,94 @@ for f in files:
 
             # normalise tf and add together
             tf_log_sum += (1 + math.log(freq, 10))
-        lenlist.append(round(math.sqrt(tf_log_sum), 2))
 
-if DEBUG:
-    print("In-memory postings list:")
-    print("=================================================")
-    for term, plist in postings.items():
-        print(term, len(plist) ,plist) 
+        doclist.append([docID ,round(math.sqrt(tf_log_sum), 2)])
 
-    print("doclist:", doclist[:10])
-    print("lenlist:",lenlist[:10])
+# if DEBUG:
+#     print("In-memory postings list:")
+#     print("=================================================")
+#     for term, plist in postings.items():
+#         print(term, len(plist) ,plist) 
 
-# # sort docIDs in posting list
-# for key in postings:
-#     postings[key] = [int(x) for x in postings[key]]
-#     postings[key].sort()
+#     print("doclist:", doclist[:10])
 
-# # sort docID list
-# doclist = [int(x) for x in doclist]
-# doclist.sort()
+# sort docIDs in posting list
+for key in postings:
+    postings[key].sort(key=itemgetter(0))
 
+# sort docID list
+doclist.sort(key=itemgetter(0))
 print(str(fcount)+" records processed in "+str(time.time() - start_time)+" seconds.")
+
+# create dict index for doclist
+# so that we can quickly get the index of a docID in doclist
+dl_idx = {}
+for i in range(len(doclist)): 
+    docID = doclist[i][0]
+    dl_idx[docID] = i
+
+#TEST in-memory search using VSM
+queries = ["marketing analyst", "profit loss statement", "suffer loss"]
+
+for query in queries:
+    N = len(doclist)
+    # cosine socres, order is the same as doclist
+    score = [0] * N
+    # process query term
+    tf_raw_query = {}
+    q_tokens = nltk.word_tokenize(query)
+    for t in q_tokens:
+        t = porter.stem(t.lower()).encode("ascii")
+        if t not in tf_raw_query:
+            tf_raw_query[t] = 1
+        else:
+            tf_raw_query[t] += 1
+
+    if DEBUG:
+        print("tf_raw_query", tf_raw_query)
+
+    for term, freq in tf_raw_query.items(): 
+        # fetch postings list
+        # TODO: fetch from disk
+        # ignore the term if it is not found in postings
+        if term in postings:
+            print("----------------processing query:", term,"-------------------------")
+            plist = postings[term]
+            for pair in plist: 
+                docID = pair[0]
+                docfreq = len(plist)
+                # find the docID index in score[]
+                idx = dl_idx[docID]
+                # calculate normalised tf 
+                tf_wt = 1 + math.log(freq, 10)
+                # calculate term idf
+                idf = math.log(len(doclist) / docfreq, 10)
+                # calculate term weight 
+                w_term = tf_wt * idf
+                # calculate document weight, using tf-wt for lnc.ltc
+                w_doc = 1 + math.log(docfreq, 10)
+                # add to doc score
+                score[idx] += w_term * w_doc
+
+                # if DEBUG:
+                #     print('docID', docID, 'docfreq', docfreq, 'idx', idx, 'w_doc', w_doc)
+                #     print('term', term, 'tf', freq,'tf_wt', tf_wt, 'idf', idf, 'w_term', w_term, 'score+', w_term * w_doc, 'final_score', score[idx])
+                
+        else:
+            if DEBUG:
+                print("ignoring term:", term)
+
+    # heap for generating top 10 scores 
+    h = []
+
+    # normalise scores by dividing document length
+    for i in range(N):
+        score[i] = score[i] / doclist[i][1]
+        # push (score, docID) tuple into heap
+        heapq.heappush(h, (score[i], doclist[i][0]))
+
+    # return top 10 components of scores
+    print(heapq.nlargest(10, h))
 
 
 # dictionary to be saved 
