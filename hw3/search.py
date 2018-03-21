@@ -59,8 +59,8 @@ with open(dictionary_file, 'r') as fd:
         # dictionary[term] = [df, pointer]
         dic[parts[0]] = [int(parts[1]), int(parts[2])]
         
-# print(dic)
-# print(doclist)
+print('dic', dic)
+print('doclist',doclist)
 
 # create dict index for doclist
 # so that we can quickly get the index of a docID in doclist
@@ -122,13 +122,13 @@ with open(postings_file, 'r') as fp:
 
                         for pair in plist: 
                             docID = pair[0]
-                            docfreq = len(plist)
+                            docfreq = pair[1]
                             # find the docID index in score[]
                             idx = dl_idx[docID]
                             # calculate normalised tf 
                             tf_wt = 1 + math.log(freq, 10)
                             # calculate term idf
-                            idf = math.log(len(doclist) / docfreq, 10)
+                            idf = math.log(len(doclist) / dic[term][0], 10)
                             # calculate term weight 
                             w_term = tf_wt * idf
                             # calculate document weight, using tf-wt for lnc.ltc
@@ -136,9 +136,9 @@ with open(postings_file, 'r') as fp:
                             # add to doc score
                             score[idx] += w_term * w_doc
 
-                            # if DEBUG:
-                            #     print('docID', docID, 'docfreq', docfreq, 'idx', idx, 'w_doc', w_doc)
-                            #     print('term', term, 'tf', freq,'tf_wt', tf_wt, 'idf', idf, 'w_term', w_term, 'score+', w_term * w_doc, 'final_score', score[idx])
+                            if DEBUG:
+                                print('docID', docID, 'docfreq', docfreq, 'idx', idx, 'w_doc', w_doc)
+                                print('term', term, 'tf', freq,'tf_wt', tf_wt, 'idf', idf, 'w_term', w_term, 'score+', w_term * w_doc, 'final_score', score[idx])
                             
                     else:
                         if DEBUG:
@@ -155,8 +155,9 @@ with open(postings_file, 'r') as fp:
 
                 # return top 10 components of scores
                 result = filter(lambda x: x[1] > 0.0, heapq.nlargest(10, h))
-
+                print('heaptop10', heapq.nlargest(10, h))
+                print('output', " ".join([str(x[1]) for x in result]))
                 fout.write(" ".join([str(x[1]) for x in result]))
                 fout.write("\n")
 
-print(str(len(lines))+" queries processed in "+str(time.time() - start_time)+" seconds.")
+print(str(len(queries))+" queries processed in "+str(time.time() - start_time)+" seconds.")
