@@ -12,6 +12,9 @@ from operator import itemgetter
 
 DEBUG = True
 
+def hasDigit(input):
+    return any(char.isdigit() for char in input)
+
 def usage():
     print "usage: " + sys.argv[0] + " -i directory-of-documents -d dictionary-file -p postings-file"
 
@@ -51,11 +54,7 @@ fcount = 0
 
 for f in files:
     docID = int(f.split('/')[-1])
-    # TESTING ONLY
     fcount += 1
-    # if DEBUG:
-    #     if fcount > 20:
-    #         break
 
     if fcount % 1000 == 0:
         print(str(fcount)+' files processed......')
@@ -67,25 +66,27 @@ for f in files:
 
         for sent in nltk.sent_tokenize(fopen.read()):
             # remove common punctuations
-            sent = sent.replace(',',' ').replace('\'',' ')
+            sent = re.sub('[^A-Za-z0-9.]+', ' ', sent)
             tokens = nltk.word_tokenize(sent)
             for t in tokens:
-                t = porter.stem(t.lower()).encode("ascii")
-                termlist.append(t)
-                # create a new dictionary entry if t is a new keyword
-                if t not in postings:
-                    postings[t] = [[docID, 1]]
-                else:
-                    found = False
-                    for plist in postings[t]:
-                        if plist[0] == docID:
-                            # add term frequencuy
-                            plist[1] += 1
-                            found = True
-                            break
-                    # add docID to posting list if it is not already inside
-                    if not found: 
-                        postings[t].append([docID, 1])
+                t = porter.stem(t.lower()).encode("ascii").replace('.','')
+                # if a term contains any digits, abandon
+                if not hasDigit(t):
+                    termlist.append(t)
+                    # create a new dictionary entry if t is a new keyword
+                    if t not in postings:
+                        postings[t] = [[docID, 1]]
+                    else:
+                        found = False
+                        for plist in postings[t]:
+                            if plist[0] == docID:
+                                # add term frequencuy
+                                plist[1] += 1
+                                found = True
+                                break
+                        # add docID to posting list if it is not already inside
+                        if not found: 
+                            postings[t].append([docID, 1])
 
         # calculate document length
         # remove duplicate terms

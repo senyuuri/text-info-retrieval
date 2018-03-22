@@ -9,6 +9,7 @@ import pdb
 import string
 import math
 import heapq
+from operator import itemgetter
 
 DEBUG = True
 
@@ -57,6 +58,7 @@ with open(dictionary_file, 'r') as fd:
     for line in lines:
         parts = line.split(',')
         # dictionary[term] = [df, pointer]
+        print('parts', parts)
         dic[parts[0]] = [int(parts[1]), int(parts[2])]
         
 print('dic', dic)
@@ -78,7 +80,7 @@ with open(postings_file, 'r') as fp:
         with open(file_of_output, 'w') as fout:
             queries = fq.readlines()
             for q in queries:
-                query = q.replace('\n', ' ').replace('\r', '')
+                query = re.sub('[^A-Za-z0-9.]+', ' ', q)
 
                 # cosine socres, order is the same as doclist
                 score = [0] * N
@@ -86,7 +88,7 @@ with open(postings_file, 'r') as fp:
                 tf_raw_query = {}
                 q_tokens = nltk.word_tokenize(query)
                 for t in q_tokens:
-                    t = porter.stem(t.lower()).encode("ascii")
+                    t = porter.stem(t.lower()).encode("ascii").replace('.','')
                     if t not in tf_raw_query:
                         tf_raw_query[t] = 1
                     else:
@@ -149,13 +151,20 @@ with open(postings_file, 'r') as fp:
 
                 # normalise scores by dividing document length
                 for i in range(N):
-                    score[i] = score[i] / doclist[i][1]
+                    #print('i',i,'score[i]',score[i],'doclist[i]',doclist[i])
+                    if doclist[i][1] != 0:
+                        score[i] = score[i] / doclist[i][1]
                     # push (score, docID) tuple into heap
                     heapq.heappush(h, (score[i], doclist[i][0]))
 
-                # return top 10 components of scores
-                result = filter(lambda x: x[1] > 0.0, heapq.nlargest(10, h))
-                print('heaptop10', heapq.nlargest(10, h))
+                # return top 10 scores, ignore zeros(irrelavant document)
+                result = filter(lambda x: x[0] > 0.0, heapq.nlargest(10, h))
+                # keep 3 decimal 
+                result = [(round(x[0],3), x[1]) for x in result]
+                print('heaptop10', result)
+                # sort by relevance
+                result.sort(key=itemgetter(0, 1), reverse=True)
+                print('heaptop10-sorted', result)
                 print('output', " ".join([str(x[1]) for x in result]))
                 fout.write(" ".join([str(x[1]) for x in result]))
                 fout.write("\n")
