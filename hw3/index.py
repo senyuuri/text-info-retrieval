@@ -10,10 +10,7 @@ import math
 import heapq
 from operator import itemgetter
 
-DEBUG = True
-
-def hasDigit(input):
-    return any(char.isdigit() for char in input)
+DEBUG = False
 
 def usage():
     print "usage: " + sys.argv[0] + " -i directory-of-documents -d dictionary-file -p postings-file"
@@ -70,23 +67,21 @@ for f in files:
             tokens = nltk.word_tokenize(sent)
             for t in tokens:
                 t = porter.stem(t.lower()).encode("ascii").replace('.','')
-                # if a term contains any digits, abandon
-                if not hasDigit(t):
-                    termlist.append(t)
-                    # create a new dictionary entry if t is a new keyword
-                    if t not in postings:
-                        postings[t] = [[docID, 1]]
-                    else:
-                        found = False
-                        for plist in postings[t]:
-                            if plist[0] == docID:
-                                # add term frequencuy
-                                plist[1] += 1
-                                found = True
-                                break
-                        # add docID to posting list if it is not already inside
-                        if not found: 
-                            postings[t].append([docID, 1])
+                termlist.append(t)
+                # create a new dictionary entry if t is a new keyword
+                if t not in postings:
+                    postings[t] = [[docID, 1]]
+                else:
+                    found = False
+                    for plist in postings[t]:
+                        if plist[0] == docID:
+                            # add term frequencuy
+                            plist[1] += 1
+                            found = True
+                            break
+                    # add docID to posting list if it is not already inside
+                    if not found: 
+                        postings[t].append([docID, 1])
 
         # calculate document length
         # remove duplicate terms
@@ -110,14 +105,6 @@ for f in files:
 
         doclist.append([docID ,round(math.sqrt(tf_log_sum), 2)])
 
-# if DEBUG:
-#     print("In-memory postings list:")
-#     print("=================================================")
-#     for term, plist in postings.items():
-#         print(term, len(plist) ,plist) 
-
-#     print("doclist:", doclist[:10])
-
 # sort docIDs in posting list
 for key in postings:
     postings[key].sort(key=itemgetter(0))
@@ -125,79 +112,6 @@ for key in postings:
 # sort docID list
 doclist.sort(key=itemgetter(0))
 print(str(fcount)+" records processed in "+str(time.time() - start_time)+" seconds.")
-
-# create dict index for doclist
-# so that we can quickly get the index of a docID in doclist
-# dl_idx = {}
-# for i in range(len(doclist)): 
-#     docID = doclist[i][0]
-#     dl_idx[docID] = i
-
-# #TEST in-memory search using VSM
-# queries = ["marketing analyst", "profit loss statement", "suffer loss"]
-
-# for query in queries:
-#     N = len(doclist)
-#     # cosine socres, order is the same as doclist
-#     score = [0] * N
-#     # process query term
-#     tf_raw_query = {}
-#     q_tokens = nltk.word_tokenize(query)
-#     for t in q_tokens:
-#         t = porter.stem(t.lower()).encode("ascii")
-#         if t not in tf_raw_query:
-#             tf_raw_query[t] = 1
-#         else:
-#             tf_raw_query[t] += 1
-
-#     if DEBUG:
-#         print("tf_raw_query", tf_raw_query)
-
-#     for term, freq in tf_raw_query.items(): 
-#         # fetch postings list
-#         # TODO: fetch from disk
-#         # ignore the term if it is not found in postings
-#         if term in postings:
-#             print("----------------processing query:", term,"-------------------------")
-#             plist = postings[term]
-#             for pair in plist: 
-#                 docID = pair[0]
-#                 docfreq = len(plist)
-#                 # find the docID index in score[]
-#                 idx = dl_idx[docID]
-#                 # calculate normalised tf 
-#                 tf_wt = 1 + math.log(freq, 10)
-#                 # calculate term idf
-#                 idf = math.log(len(doclist) / docfreq, 10)
-#                 # calculate term weight 
-#                 w_term = tf_wt * idf
-#                 # calculate document weight, using tf-wt for lnc.ltc
-#                 w_doc = 1 + math.log(docfreq, 10)
-#                 # add to doc score
-#                 score[idx] += w_term * w_doc
-
-#                 # if DEBUG:
-#                 #     print('docID', docID, 'docfreq', docfreq, 'idx', idx, 'w_doc', w_doc)
-#                 #     print('term', term, 'tf', freq,'tf_wt', tf_wt, 'idf', idf, 'w_term', w_term, 'score+', w_term * w_doc, 'final_score', score[idx])
-                
-#         else:
-#             if DEBUG:
-#                 print("ignoring term:", term)
-
-#     # heap for generating top 10 scores 
-#     h = []
-
-#     # normalise scores by dividing document length
-#     for i in range(N):
-#         score[i] = score[i] / doclist[i][1]
-#         # push (score, docID) tuple into heap
-#         heapq.heappush(h, (score[i], doclist[i][0]))
-
-#     # return top 10 components of scores
-#     result = heapq.nlargest(10, h)
-
-#     print(" ".join([str(x[1]) for x in result]))
-
 
 # dictionary to be saved 
 dictionary = []

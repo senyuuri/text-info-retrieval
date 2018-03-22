@@ -11,7 +11,7 @@ import math
 import heapq
 from operator import itemgetter
 
-DEBUG = True
+DEBUG = False
 
 def usage():
     print "usage: " + sys.argv[0] + " -d dictionary-file -p postings-file -q file-of-queries -o output-file-of-results"
@@ -58,11 +58,10 @@ with open(dictionary_file, 'r') as fd:
     for line in lines:
         parts = line.split(',')
         # dictionary[term] = [df, pointer]
-        print('parts', parts)
         dic[parts[0]] = [int(parts[1]), int(parts[2])]
         
-print('dic', dic)
-print('doclist',doclist)
+# print('dic', dic)
+# print('doclist',doclist)
 
 # create dict index for doclist
 # so that we can quickly get the index of a docID in doclist
@@ -99,13 +98,9 @@ with open(postings_file, 'r') as fp:
 
                 for term, freq in tf_raw_query.items(): 
                     # fetch postings list
-                    # TODO: fetch from disk
                     # ignore the term if it is not found in postings
                     if term in dic:
-                        print("----------------processing query:", term,"-------------------------")
-                        # plist = postings[term]
                         # move cursor in postings list
-                        print('term', term ,'fp cursor', dic[term][1])
                         fp.seek(dic[term][1], 0)
                         # read postings list from disk
                         line = ''
@@ -114,13 +109,12 @@ with open(postings_file, 'r') as fp:
                             line += char
                             char = fp.read(1)
 
-                        print('#read postings:', line)
                         plist = []
                         plist_raw = line.split(';')
                         for p in plist_raw:
                             parts = p.split(',')
                             plist.append([int(parts[0]), int(parts[1])])
-                        print('#plist', plist)
+                        #print('#plist', plist)
 
                         for pair in plist: 
                             docID = pair[0]
@@ -139,8 +133,8 @@ with open(postings_file, 'r') as fp:
                             score[idx] += w_term * w_doc
 
                             if DEBUG:
-                                print('docID', docID, 'docfreq', docfreq, 'idx', idx, 'w_doc', w_doc)
-                                print('term', term, 'tf', freq,'tf_wt', tf_wt, 'idf', idf, 'w_term', w_term, 'score+', w_term * w_doc, 'final_score', score[idx])
+                               print('docID', docID, 'docfreq', docfreq, 'idx', idx, 'w_doc', w_doc, 'doc_len', doclist[idx][1])
+                               print('term', term, 'tf', freq,'tf_wt', tf_wt, 'idf', idf, 'w_term', w_term, 'score+', w_term * w_doc/doclist[idx][1], 'final_score', score[idx]/doclist[idx][1])
                             
                     else:
                         if DEBUG:
@@ -160,12 +154,17 @@ with open(postings_file, 'r') as fp:
                 # return top 10 scores, ignore zeros(irrelavant document)
                 result = filter(lambda x: x[0] > 0.0, heapq.nlargest(10, h))
                 # keep 3 decimal 
-                result = [(round(x[0],3), x[1]) for x in result]
-                print('heaptop10', result)
+                result = [(round(x[0],2), x[1]) for x in result]
                 # sort by relevance
-                result.sort(key=itemgetter(0, 1), reverse=True)
-                print('heaptop10-sorted', result)
-                print('output', " ".join([str(x[1]) for x in result]))
+                result.sort(key=itemgetter(0), reverse=True)
+                # for documents with the same score, sort by their docID
+                if len(result) != 0:
+                    for i in range(10):
+                        for j in range(10-i-1):
+                            if (result[j][0] == result[j+1][0]) and (result[j][1] > result[j+1][1]):
+                                result[j], result[j+1] = result[j+1], result[j]
+
+                print(q, " ".join([str(x[1]) for x in result]))
                 fout.write(" ".join([str(x[1]) for x in result]))
                 fout.write("\n")
 
