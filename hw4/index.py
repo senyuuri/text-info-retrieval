@@ -58,7 +58,7 @@ fcount = 0
 def addToPostings(docID, term):
     if term not in postings:
         # create a new dictionary entry if t is a new keyword
-        postings[t] = [[docID, 1]]
+        postings[term] = [[docID, 1]]
     else:
         found = False
         for plist in postings[term]:
@@ -78,18 +78,20 @@ with open(input_file, encoding='utf-8', mode='r') as fopen:
     line = fopen.readline()
 
     # indexing each document
-    while line != '':
+    while True:
         fcount += 1
         # terms in each document, for later tf-idf calculation
         termlist = []
         raw = []
 
-        # DEBUG
-        if fcount == 100:
+        DEBUG
+        if fcount == 10:
             break
 
         line = fopen.readline()
-        while (line[-2:] != '"\n'):
+        if line == '':
+            break
+        while (line[-2:] != '"\n' or line[-3:] == '""\n'):
             raw.append(line)
             line = fopen.readline()
         
@@ -100,8 +102,6 @@ with open(input_file, encoding='utf-8', mode='r') as fopen:
         docID = int(raw_doc[0].replace('"',''))
         title = raw_doc[1]
         content = raw_doc[2]
-        print(len(raw_doc))
-        print(raw_doc)
         court = raw_doc[4].replace('"','').replace('\n', '')
         
         # DEBUG 
@@ -111,29 +111,34 @@ with open(input_file, encoding='utf-8', mode='r') as fopen:
         print('title: ' + title)
         print('abstract:' + content[:50])
         print('court:' + court)
-        time.sleep(0.1)
+        #time.sleep(0.1)
 
         # Part 1: tokenizing TITLE
-        tokens = [x.strip() for x in title.split('[')[0].split(' v ')]
-        tokens.append(title.split(']')[1].strip())
-        print(tokens)
+        print('[' in title)
+        if '[' in title:
+            tokens = nltk.word_tokenize(title.split('[')[0])
+            caseid = title.split(']')[1].replace(' ','')
+            addToPostings(docID, caseid)
+        else:
+            tokens = nltk.word_tokenize(title)
         for t in tokens:
-            t = t.lower()
+            t = porter.stem(t.lower())
             t = t + '#'
             addToPostings(docID, t)
-           
-        # Part 2: tokenizing COURT
 
+        # Part 2: tokenizing COURT
+        court = court + '&'
+        addToPostings(docID, t)
 
         # Part 3: tokenizing CONTENT
-        # for sent in nltk.sent_tokenize(content):
-        #     # remove common punctuations
-        #     sent = re.sub('[^A-Za-z0-9.]+', ' ', sent)
-        #     tokens = nltk.word_tokenize(sent)
-        #     for t in tokens:
-        #         t = porter.stem(t.lower()).encode("ascii").replace('.','')
-        #         t = t + '$'
-        #         addToPostings(docID, t)
+        for sent in nltk.sent_tokenize(content):
+            # remove common punctuations
+            sent = re.sub('[^A-Za-z0-9.]+', ' ', sent)
+            tokens = nltk.word_tokenize(sent)
+            for t in tokens:
+                t = porter.stem(t.lower()).replace('.','')
+                t = t + '$'
+                addToPostings(docID, t)
 
         # calculate document length
         # remove duplicate terms
@@ -158,7 +163,8 @@ with open(input_file, encoding='utf-8', mode='r') as fopen:
         doclist.append([docID ,round(math.sqrt(tf_log_sum), 2)])
 
 print(postings)
-print(doclist)
+# print(doclist)
+
 # # sort docIDs in posting list
 # for key in postings:
 #     postings[key].sort(key=itemgetter(0))
