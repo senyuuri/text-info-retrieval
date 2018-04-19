@@ -13,14 +13,14 @@ from operator import itemgetter
 DEBUG = False
 
 def usage():
-    print "usage: " + sys.argv[0] + " -i dataset-file -d dictionary-file -p postings-file"
+    print("usage: " + sys.argv[0] + " -i dataset-file -d dictionary-file -p postings-file")
 
 
 input_file = output_file_dictionary = output_file_postings = None
 
 try:
     opts, args = getopt.getopt(sys.argv[1:], 'i:d:p:')
-except getopt.GetoptError, err:
+except getopt.GetoptError:
     usage()
     sys.exit(2)
     
@@ -39,72 +39,126 @@ if input_file == None or output_file_postings == None or output_file_dictionary 
     sys.exit(2)
 
 start_time = time.time()
-# in-memory temporary posting list
+# in-memory temporary posting list for CONTENT zone
 postings = {} 
+# postings list for TITLE zone
+plist_title = {}
+# postings list for COURT zone
+plist_court = {}
+
 # using porter stemmer
 porter = nltk.PorterStemmer()
 # list of indexed documents and their corresponding 'length' for cosine normalisation
 doclist = []
 
+# document count
+fcount = 0
+
+# add term to postings list
+def addToPostings(docID, term):
+    if term not in postings:
+        # create a new dictionary entry if t is a new keyword
+        postings[t] = [[docID, 1]]
+    else:
+        found = False
+        for plist in postings[term]:
+            if plist[0] == docID:
+                # add term frequencuy
+                plist[1] += 1
+                found = True
+                break
+        # add docID to posting list if it is not already inside
+        if not found: 
+            postings[term].append([docID, 1])
+
+
+# main
 # indexing the input_data file
-with open(input_file, 'r') as fopen:
-    # terms in each document, for later tf-idf calculation
-    termlist = []
-    raw = []
+with open(input_file, encoding='utf-8', mode='r') as fopen:
     line = fopen.readline()
-    line = fopen.readline()
-    while (line[-2:] != '"\n'):
-        raw.append(line)
+
+    # indexing each document
+    while line != '':
+        fcount += 1
+        # terms in each document, for later tf-idf calculation
+        termlist = []
+        raw = []
+
+        # DEBUG
+        if fcount == 100:
+            break
+
         line = fopen.readline()
-    
-    raw += line
-    raw_doc = ''.join(raw)
-    
-    print(raw_doc.split('","')[2])
-#     for sent in nltk.sent_tokenize(fopen.read()):
-#         # remove common punctuations
-#         sent = re.sub('[^A-Za-z0-9.]+', ' ', sent)
-#         tokens = nltk.word_tokenize(sent)
-#         for t in tokens:
-#             t = porter.stem(t.lower()).encode("ascii").replace('.','')
-#             termlist.append(t)
-#             # create a new dictionary entry if t is a new keyword
-#             if t not in postings:
-#                 postings[t] = [[docID, 1]]
-#             else:
-#                 found = False
-#                 for plist in postings[t]:
-#                     if plist[0] == docID:
-#                         # add term frequencuy
-#                         plist[1] += 1
-#                         found = True
-#                         break
-#                 # add docID to posting list if it is not already inside
-#                 if not found: 
-#                     postings[t].append([docID, 1])
+        while (line[-2:] != '"\n'):
+            raw.append(line)
+            line = fopen.readline()
+        
+        raw += line
+        raw_doc = ''.join(raw).split('","')
+        
+        # extract zones ('date_posted' is ignored here)
+        docID = int(raw_doc[0].replace('"',''))
+        title = raw_doc[1]
+        content = raw_doc[2]
+        print(len(raw_doc))
+        print(raw_doc)
+        court = raw_doc[4].replace('"','').replace('\n', '')
+        
+        # DEBUG 
+        print('======================================')
+        print('fcount: ' + str(fcount))
+        print('docID: ' + str(docID))
+        print('title: ' + title)
+        print('abstract:' + content[:50])
+        print('court:' + court)
+        time.sleep(0.1)
 
-#     # calculate document length
-#     # remove duplicate terms
-#     termset = set(termlist)
-#     tf_log_sum = 0 
-#     for t in termset:
-#         # get term frequency from postings
-#         # assertion: t in postings 
-#         # must be true since all terms are added to the postings list in the previous loop
-#         for plist in postings[t]:
-#             if plist[0] == docID:
-#                 freq = plist[1]
+        # Part 1: tokenizing TITLE
+        tokens = [x.strip() for x in title.split('[')[0].split(' v ')]
+        tokens.append(title.split(']')[1].strip())
+        print(tokens)
+        for t in tokens:
+            t = t.lower()
+            t = t + '#'
+            addToPostings(docID, t)
+           
+        # Part 2: tokenizing COURT
 
-#         # bulletproof code. This should never happen!
-#         if freq == None:
-#             raise LookupError("Term '" + t + "'not found in the postings list. Not good:(")
-#             sys.exit(2)
 
-#         # normalise tf and add together
-#         tf_log_sum += math.pow(1 + math.log(freq, 10), 2)
+        # Part 3: tokenizing CONTENT
+        # for sent in nltk.sent_tokenize(content):
+        #     # remove common punctuations
+        #     sent = re.sub('[^A-Za-z0-9.]+', ' ', sent)
+        #     tokens = nltk.word_tokenize(sent)
+        #     for t in tokens:
+        #         t = porter.stem(t.lower()).encode("ascii").replace('.','')
+        #         t = t + '$'
+        #         addToPostings(docID, t)
 
-#     doclist.append([docID ,round(math.sqrt(tf_log_sum), 2)])
+        # calculate document length
+        # remove duplicate terms
+        termset = set(termlist)
+        tf_log_sum = 0 
+        for t in termset:
+            # get term frequency from postings
+            # assertion: t in postings 
+            # must be true since all terms are added to the postings list in the previous loop
+            for plist in postings[t]:
+                if plist[0] == docID:
+                    freq = plist[1]
 
+            # bulletproof code. This should never happen!
+            if freq == None:
+                raise LookupError("Term '" + t + "'not found in the postings list. Not good:(")
+                sys.exit(2)
+
+            # normalise tf and add together
+            tf_log_sum += math.pow(1 + math.log(freq, 10), 2)
+
+        doclist.append([docID ,round(math.sqrt(tf_log_sum), 2)])
+
+print(postings)
+print(doclist)
 # # sort docIDs in posting list
 # for key in postings:
 #     postings[key].sort(key=itemgetter(0))
