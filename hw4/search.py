@@ -58,6 +58,7 @@ with open(dictionary_file, 'r') as fd:
     for line in lines:
         parts = line.split(',')
         # dictionary[term] = [df, pointer]
+        print(parts)
         dic[parts[0]] = [int(parts[1]), int(parts[2])]
         
 # print('dic', dic)
@@ -88,6 +89,8 @@ with open(postings_file, 'r') as fp:
                 q_tokens = nltk.word_tokenize(query)
                 for t in q_tokens:
                     t = porter.stem(t.lower()).encode("ascii").replace('.','')
+                    # DEBUG
+                    t = t + '$'
                     if t not in tf_raw_query:
                         tf_raw_query[t] = 1
                     else:
@@ -158,9 +161,11 @@ with open(postings_file, 'r') as fp:
                 # sort by relevance
                 result.sort(key=itemgetter(0), reverse=True)
                 # for documents with the same score, sort by their docID
+                print(result)
                 if len(result) != 0:
-                    for i in range(10):
-                        for j in range(10-i-1):
+                    for i in range(len(result)):
+                        for j in range(len(result)-i-1):
+                            print(i, j)
                             if (result[j][0] == result[j+1][0]) and (result[j][1] > result[j+1][1]):
                                 result[j], result[j+1] = result[j+1], result[j]
 

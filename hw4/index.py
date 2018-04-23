@@ -39,12 +39,8 @@ if input_file == None or output_file_postings == None or output_file_dictionary 
     sys.exit(2)
 
 start_time = time.time()
-# in-memory temporary posting list for CONTENT zone
+# in-memory temporary posting list 
 postings = {} 
-# postings list for TITLE zone
-plist_title = {}
-# postings list for COURT zone
-plist_court = {}
 
 # using porter stemmer
 porter = nltk.PorterStemmer()
@@ -84,9 +80,9 @@ with open(input_file, encoding='utf-8', mode='r') as fopen:
         termlist = []
         raw = []
 
-        DEBUG
-        if fcount == 10:
-            break
+        # DEBUG
+        # if fcount == 100:
+        #     break
 
         line = fopen.readline()
         if line == '':
@@ -111,10 +107,9 @@ with open(input_file, encoding='utf-8', mode='r') as fopen:
         print('title: ' + title)
         print('abstract:' + content[:50])
         print('court:' + court)
-        #time.sleep(0.1)
+        time.sleep(0.1)
 
         # Part 1: tokenizing TITLE
-        print('[' in title)
         if '[' in title:
             tokens = nltk.word_tokenize(title.split('[')[0])
             caseid = title.split(']')[1].replace(' ','')
@@ -122,13 +117,16 @@ with open(input_file, encoding='utf-8', mode='r') as fopen:
         else:
             tokens = nltk.word_tokenize(title)
         for t in tokens:
+            t = re.sub('[^A-Za-z0-9.]+', ' ', t)
             t = porter.stem(t.lower())
             t = t + '#'
+            termlist.append(t)
             addToPostings(docID, t)
 
         # Part 2: tokenizing COURT
         court = court + '&'
-        addToPostings(docID, t)
+        termlist.append(court.lower())
+        addToPostings(docID, court.lower())
 
         # Part 3: tokenizing CONTENT
         for sent in nltk.sent_tokenize(content):
@@ -138,6 +136,7 @@ with open(input_file, encoding='utf-8', mode='r') as fopen:
             for t in tokens:
                 t = porter.stem(t.lower()).replace('.','')
                 t = t + '$'
+                termlist.append(t)
                 addToPostings(docID, t)
 
         # calculate document length
@@ -162,36 +161,36 @@ with open(input_file, encoding='utf-8', mode='r') as fopen:
 
         doclist.append([docID ,round(math.sqrt(tf_log_sum), 2)])
 
-print(postings)
+# print(postings)
 # print(doclist)
 
 # # sort docIDs in posting list
-# for key in postings:
-#     postings[key].sort(key=itemgetter(0))
+for key in postings:
+    postings[key].sort(key=itemgetter(0))
 
 # # sort docID list
-# doclist.sort(key=itemgetter(0))
-# print(str(fcount)+" records processed in "+str(time.time() - start_time)+" seconds.")
+doclist.sort(key=itemgetter(0))
+print(str(fcount)+" records processed in "+str(time.time() - start_time)+" seconds.")
 
-# # dictionary to be saved 
-# dictionary = []
+# dictionary to be saved 
+dictionary = []
 
-# # save postings list to file
-# with open(output_file_postings, 'w') as fp:
-#     for term, plist in postings.items():
-#         # get write cursor position
-#         w_cursor = fp.tell()
-#         # each dictionary entry contains: term, df, pointer to postings file
-#         dictionary.append([term, len(plist), w_cursor])
-#         # write postings list to file
-#         raw = [str(p[0])+','+str(p[1]) for p in plist]
-#         line = ';'.join(raw)
-#         fp.write(line)
-#         fp.write('\n')
+# save postings list to file
+with open(output_file_postings, 'w') as fp:
+    for term, plist in postings.items():
+        # get write cursor position
+        w_cursor = fp.tell()
+        # each dictionary entry contains: term, df, pointer to postings file
+        dictionary.append([term, len(plist), w_cursor])
+        # write postings list to file
+        raw = [str(p[0])+','+str(p[1]) for p in plist]
+        line = ';'.join(raw)
+        fp.write(line)
+        fp.write('\n')
 
 # # save dictionary to file
-# with open(output_file_dictionary, 'w') as fd:
-#     # write document list and their lengths in the first line
-#     fd.write(';'.join([str(x[0])+','+str(x[1]) for x in doclist]) + '\n')
-#     for d in dictionary:
-#         fd.write(','.join([str(x) for x in d]) + '\n')
+with open(output_file_dictionary, 'w') as fd:
+    # write document list and their lengths in the first line
+    fd.write(';'.join([str(x[0])+','+str(x[1]) for x in doclist]) + '\n')
+    for d in dictionary:
+        fd.write(','.join([str(x) for x in d]) + '\n')

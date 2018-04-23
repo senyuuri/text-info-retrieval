@@ -2,7 +2,7 @@ This is the README file for A0144315N's submission
 email: e0008346@u.nus.edu
 
 == Python Version ==
-I'm using Python Version 2.7.12 for this assignment.
+I'm using Python Version 3.5.2 for this assignment.
 
 
 == General Notes about this assignment ==
