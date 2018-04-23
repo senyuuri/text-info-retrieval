@@ -75,102 +75,107 @@ for i in range(len(doclist)):
 N = len(doclist)
 start_time = time.time()
 # process query
-with open(postings_file, 'r') as fp:
-    with open(file_of_queries, 'r') as fq:
-        with open(file_of_output, 'w') as fout:
-            queries = fq.readlines()
-            for q in queries:
-                query = re.sub('[^A-Za-z0-9.]+', ' ', q)
+fp = open(postings_file, 'r')
+fq = open(file_of_queries, 'r')
+fout = open(file_of_output, 'w')
 
-                # cosine socres, order is the same as doclist
-                score = [0] * N
-                # process query term
-                tf_raw_query = {}
-                q_tokens = nltk.word_tokenize(query)
-                for t in q_tokens:
-                    t = porter.stem(t.lower()).encode("ascii").replace('.','')
-                    # DEBUG
-                    t = t + '$'
-                    if t not in tf_raw_query:
-                        tf_raw_query[t] = 1
-                    else:
-                        tf_raw_query[t] += 1
+queries = fq.readlines()
+for q in queries:
+query = re.sub('[^A-Za-z0-9.]+', ' ', q)
 
-                if DEBUG:
-                    print("tf_raw_query", tf_raw_query)
+# cosine socres, order is the same as doclist
+score = [0] * N
+# process query term
+tf_raw_query = {}
+q_tokens = nltk.word_tokenize(query)
+for t in q_tokens:
+    t = porter.stem(t.lower()).encode("ascii").replace('.','')
+    # DEBUG
+    t = t + '$'
+    if t not in tf_raw_query:
+        tf_raw_query[t] = 1
+    else:
+        tf_raw_query[t] += 1
 
-                for term, freq in tf_raw_query.items(): 
-                    # fetch postings list
-                    # ignore the term if it is not found in postings
-                    if term in dic:
-                        # move cursor in postings list
-                        fp.seek(dic[term][1], 0)
-                        # read postings list from disk
-                        line = ''
-                        char = fp.read(1)
-                        while char != '\n' and char != '':
-                            line += char
-                            char = fp.read(1)
+if DEBUG:
+    print("tf_raw_query", tf_raw_query)
 
-                        plist = []
-                        plist_raw = line.split(';')
-                        for p in plist_raw:
-                            parts = p.split(',')
-                            plist.append([int(parts[0]), int(parts[1])])
-                        #print('#plist', plist)
+for term, freq in tf_raw_query.items(): 
+    # fetch postings list
+    # ignore the term if it is not found in postings
+    if term in dic:
+        # move cursor in postings list
+        fp.seek(dic[term][1], 0)
+        # read postings list from disk
+        line = ''
+        char = fp.read(1)
+        while char != '\n' and char != '':
+            line += char
+            char = fp.read(1)
 
-                        for pair in plist: 
-                            docID = pair[0]
-                            docfreq = pair[1]
-                            # find the docID index in score[]
-                            idx = dl_idx[docID]
-                            # calculate normalised tf 
-                            tf_wt = 1 + math.log(freq, 10)
-                            # calculate term idf
-                            idf = math.log(len(doclist) / dic[term][0], 10)
-                            # calculate term weight 
-                            w_term = tf_wt * idf
-                            # calculate document weight, using tf-wt for lnc.ltc
-                            w_doc = 1 + math.log(docfreq, 10)
-                            # add to doc score
-                            score[idx] += w_term * w_doc
+        plist = []
+        plist_raw = line.split(';')
+        for p in plist_raw:
+            parts = p.split(',')
+            plist.append([int(parts[0]), int(parts[1])])
+        #print('#plist', plist)
 
-                            if DEBUG:
-                               print('docID', docID, 'docfreq', docfreq, 'idx', idx, 'w_doc', w_doc, 'doc_len', doclist[idx][1])
-                               print('term', term, 'tf', freq,'tf_wt', tf_wt, 'idf', idf, 'w_term', w_term, 'score+', w_term * w_doc/doclist[idx][1], 'final_score', score[idx]/doclist[idx][1])
-                            
-                    else:
-                        if DEBUG:
-                            print("ignoring term:", term)
+        for pair in plist: 
+            docID = pair[0]
+            docfreq = pair[1]
+            # find the docID index in score[]
+            idx = dl_idx[docID]
+            # calculate normalised tf 
+            tf_wt = 1 + math.log(freq, 10)
+            # calculate term idf
+            idf = math.log(len(doclist) / dic[term][0], 10)
+            # calculate term weight 
+            w_term = tf_wt * idf
+            # calculate document weight, using tf-wt for lnc.ltc
+            w_doc = 1 + math.log(docfreq, 10)
+            # add to doc score
+            score[idx] += w_term * w_doc
 
-                # heap for generating top 10 scores 
-                h = []
+            if DEBUG:
+                print('docID', docID, 'docfreq', docfreq, 'idx', idx, 'w_doc', w_doc, 'doc_len', doclist[idx][1])
+                print('term', term, 'tf', freq,'tf_wt', tf_wt, 'idf', idf, 'w_term', w_term, 'score+', w_term * w_doc/doclist[idx][1], 'final_score', score[idx]/doclist[idx][1])
+            
+    else:
+        if DEBUG:
+            print("ignoring term:", term)
 
-                # normalise scores by dividing document length
-                for i in range(N):
-                    #print('i',i,'score[i]',score[i],'doclist[i]',doclist[i])
-                    if doclist[i][1] != 0:
-                        score[i] = score[i] / doclist[i][1]
-                    # push (score, docID) tuple into heap
-                    heapq.heappush(h, (score[i], doclist[i][0]))
+# heap for generating top 10 scores 
+h = []
 
-                # return top 10 scores, ignore zeros(irrelavant document)
-                result = filter(lambda x: x[0] > 0.0, heapq.nlargest(10, h))
-                # keep 3 decimal 
-                result = [(round(x[0],2), x[1]) for x in result]
-                # sort by relevance
-                result.sort(key=itemgetter(0), reverse=True)
-                # for documents with the same score, sort by their docID
-                print(result)
-                if len(result) != 0:
-                    for i in range(len(result)):
-                        for j in range(len(result)-i-1):
-                            print(i, j)
-                            if (result[j][0] == result[j+1][0]) and (result[j][1] > result[j+1][1]):
-                                result[j], result[j+1] = result[j+1], result[j]
+# normalise scores by dividing document length
+for i in range(N):
+    #print('i',i,'score[i]',score[i],'doclist[i]',doclist[i])
+    if doclist[i][1] != 0:
+        score[i] = score[i] / doclist[i][1]
+    # push (score, docID) tuple into heap
+    heapq.heappush(h, (score[i], doclist[i][0]))
 
-                print(q, " ".join([str(x[1]) for x in result]))
-                fout.write(" ".join([str(x[1]) for x in result]))
-                fout.write("\n")
+# return top 10 scores, ignore zeros(irrelavant document)
+result = filter(lambda x: x[0] > 0.0, heapq.nlargest(10, h))
+# keep 3 decimal 
+result = [(round(x[0],2), x[1]) for x in result]
+# sort by relevance
+result.sort(key=itemgetter(0), reverse=True)
+# for documents with the same score, sort by their docID
+print(result)
+if len(result) != 0:
+    for i in range(len(result)):
+        for j in range(len(result)-i-1):
+            print(i, j)
+            if (result[j][0] == result[j+1][0]) and (result[j][1] > result[j+1][1]):
+                result[j], result[j+1] = result[j+1], result[j]
+
+print(q, " ".join([str(x[1]) for x in result]))
+fout.write(" ".join([str(x[1]) for x in result]))
+fout.write("\n")
+
+fp.close()
+fq.close()
+fout.close()
 
 print(str(len(queries))+" queries processed in "+str(time.time() - start_time)+" seconds.")
