@@ -169,8 +169,8 @@ if __name__ == '__main__':
             termlist = []
             raw = []
 
-            if fcount == 2000:
-                break
+            # if fcount == 2000:
+            #     break
 
             line = fopen.readline()
             if line == '':
