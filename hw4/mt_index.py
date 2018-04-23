@@ -131,26 +131,26 @@ def process_tokens(token_list):
         for t in tokens:
             addToPostings(docID, t)
 
-        termset = set(tokens)
-        tf_log_sum = 0 
-        for t in termset:
-            # get term frequency from postings
-            # assertion: t in postings 
-            # must be true since all terms are added to the postings list in the previous loop
-            freq = None 
+        # termset = set(tokens)
+        # tf_log_sum = 0 
+        # for t in termset:
+        #     # get term frequency from postings
+        #     # assertion: t in postings 
+        #     # must be true since all terms are added to the postings list in the previous loop
+        #     freq = None 
 
-            for plist in postings[t]:
-                if plist[0] == docID:
-                    freq = plist[1]
+        #     for plist in postings[t]:
+        #         if plist[0] == docID:
+        #             freq = plist[1]
 
-            # bulletproof code. This should never happen!
-            if freq == None:
-                raise LookupError("Term '" + t + "'not found in the postings list. Not good:(")
-                sys.exit(2)
+        #     # bulletproof code. This should never happen!
+        #     if freq == None:
+        #         raise LookupError("Term '" + t + "'not found in the postings list. Not good:(")
+        #         sys.exit(2)
 
-            # normalise tf and add together
-            tf_log_sum += math.pow(1 + math.log(freq, 10), 2)
-        doclist.append([docID ,round(math.sqrt(tf_log_sum), 2)])
+        #     # normalise tf and add together
+        #     tf_log_sum += math.pow(1 + math.log(freq, 10), 2)
+        # doclist.append([docID ,round(math.sqrt(tf_log_sum), 2)])
 
 
 if __name__ == '__main__':
@@ -169,8 +169,8 @@ if __name__ == '__main__':
             termlist = []
             raw = []
 
-            # if fcount == 2000:
-            #     break
+            if fcount == 2000:
+                break
 
             line = fopen.readline()
             if line == '':
@@ -188,40 +188,41 @@ if __name__ == '__main__':
         tokens = pool.map(process_doc, doc_files)
         print(str(fcount)+" records processed in "+str(time.time() - start_time)+" seconds.")
 
-    # Add token to postings list
-    process_tokens(tokens)
+    tokens.sort(key=itemgetter(0, 1))
+    # # Add token to postings list
+    # process_tokens(tokens)
 
-    # # sort docIDs in posting list
-    for key in postings:
-        postings[key].sort(key=itemgetter(0))
+    # # # sort docIDs in posting list
+    # for key in postings:
+    #     postings[key].sort(key=itemgetter(0))
 
-    # # sort docID list
-    doclist.sort(key=itemgetter(0))
+    # # # sort docID list
+    # doclist.sort(key=itemgetter(0))
 
-    print(postings)
-    print(doclist)
-    # dictionary to be saved 
-    dictionary = []
+    # print(postings)
+    # print(doclist)
+    # # dictionary to be saved 
+    # dictionary = []
 
-    # save postings list to file
-    with open(output_file_postings, 'w') as fp:
-        for term, plist in postings.items():
-            # get write cursor position
-            w_cursor = fp.tell()
-            # each dictionary entry contains: term, df, pointer to postings file
-            dictionary.append([term, len(plist), w_cursor])
-            # write postings list to file
-            raw = [str(p[0])+','+str(p[1]) for p in plist]
-            line = ';'.join(raw)
-            fp.write(line)
-            fp.write('\n')
+    # # save postings list to file
+    # with open(output_file_postings, 'w') as fp:
+    #     for term, plist in postings.items():
+    #         # get write cursor position
+    #         w_cursor = fp.tell()
+    #         # each dictionary entry contains: term, df, pointer to postings file
+    #         dictionary.append([term, len(plist), w_cursor])
+    #         # write postings list to file
+    #         raw = [str(p[0])+','+str(p[1]) for p in plist]
+    #         line = ';'.join(raw)
+    #         fp.write(line)
+    #         fp.write('\n')
 
-    # # save dictionary to file
-    with open(output_file_dictionary, 'w') as fd:
-        # write document list and their lengths in the first line
-        fd.write(';'.join([str(x[0])+','+str(x[1]) for x in doclist]) + '\n')
-        for d in dictionary:
-            fd.write(','.join([str(x) for x in d]) + '\n')
+    # # # save dictionary to file
+    # with open(output_file_dictionary, 'w') as fd:
+    #     # write document list and their lengths in the first line
+    #     fd.write(';'.join([str(x[0])+','+str(x[1]) for x in doclist]) + '\n')
+    #     for d in dictionary:
+    #         fd.write(','.join([str(x) for x in d]) + '\n')
     
     print(str(fcount)+" records processed in "+str(time.time() - start_time)+" seconds.")
         
