@@ -67,7 +67,6 @@ def addToPostings(docID, term):
         if not found: 
             postings[term].append([docID, 1])
 
-
 # main
 # indexing the input_data file
 with open(input_file, encoding='utf-8', mode='r') as fopen:
@@ -81,7 +80,7 @@ with open(input_file, encoding='utf-8', mode='r') as fopen:
         raw = []
 
         # DEBUG
-        # if fcount == 100:
+        # if fcount == 200:
         #     break
 
         line = fopen.readline()
@@ -117,11 +116,12 @@ with open(input_file, encoding='utf-8', mode='r') as fopen:
         else:
             tokens = nltk.word_tokenize(title)
         for t in tokens:
-            t = re.sub('[^A-Za-z0-9.]+', ' ', t)
-            t = porter.stem(t.lower())
-            t = t + '#'
-            termlist.append(t)
-            addToPostings(docID, t)
+            t = re.sub(r'\W+', '', t)
+            if t != None:
+                t = porter.stem(t.lower())
+                t = t + '#'
+                termlist.append(t)
+                addToPostings(docID, t)
 
         # Part 2: tokenizing COURT
         court = court + '&'
@@ -131,13 +131,14 @@ with open(input_file, encoding='utf-8', mode='r') as fopen:
         # Part 3: tokenizing CONTENT
         for sent in nltk.sent_tokenize(content):
             # remove common punctuations
-            sent = re.sub('[^A-Za-z0-9.]+', ' ', sent)
             tokens = nltk.word_tokenize(sent)
             for t in tokens:
-                t = porter.stem(t.lower()).replace('.','')
-                t = t + '$'
-                termlist.append(t)
-                addToPostings(docID, t)
+                t = re.sub(r'\W+', '', t)
+                if t != '':
+                    t = porter.stem(t.lower()).replace('.','')
+                    t = t + '$'
+                    termlist.append(t)
+                    addToPostings(docID, t)
 
         # calculate document length
         # remove duplicate terms
@@ -161,7 +162,8 @@ with open(input_file, encoding='utf-8', mode='r') as fopen:
 
         doclist.append([docID ,round(math.sqrt(tf_log_sum), 2)])
 
-# print(postings)
+# for p in postings:
+#     print(p)
 # print(doclist)
 
 # # sort docIDs in posting list
