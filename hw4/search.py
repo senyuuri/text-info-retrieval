@@ -12,8 +12,12 @@ import math
 import heapq
 from operator import itemgetter
 
+# Optional features
 DEBUG = False
 QUERY_EXPANSION = False
+ZONE_SENSITIVE = True
+
+
 
 def usage():
     print("usage: " + sys.argv[0] + " -d dictionary-file -p postings-file -q file-of-queries -o output-file-of-results")
