@@ -123,7 +123,7 @@ if __name__ == '__main__':
             fcount += 1
 
             # create a new block
-            if fcount % 2000 == 0:
+            if fcount % 1000 == 0:
                 doc_files.append(sub_block)
                 sub_block = []
     
@@ -145,8 +145,13 @@ if __name__ == '__main__':
             doclist = []
 
             results = pool.map(process_doc, block)
+            term_count = 0
+            for r in results:
+                term_count += len(r[2])
+            print('Number of terms:' + str(term_count))
             print('block ' + str(block_count) +':' +str(len(results))+' records processed in '+str(time.time() - start_time)+' seconds.')
 
+        r_count = 0
         for r in results:
             doclist.append([r[0], r[1]])
             docID = r[0]
@@ -165,6 +170,9 @@ if __name__ == '__main__':
                     # add docID to posting list if it is not already inside
                     if not found: 
                         postings[term].append([docID, 1])
+            r_count += 1
+            print('Progress: block ' + str(block_count) + ',' + str(r_count) +'/1000')
+
 
         print( 'completed. Number of tokens:'+str(len(postings)))
         print("Tokenisation completed in "+str(time.time() - start_time)+" seconds.")

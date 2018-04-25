@@ -140,12 +140,14 @@ for query in queries:
 
             plist = []
             plist_raw = line.split(';')
+            print(plist_raw)
             for p in plist_raw:
                 parts = p.split(',')
                 plist.append([int(parts[0]), int(parts[1])])
             #print('#plist', plist)
 
-            for pair in plist: 
+            for pair in plist:
+                print(pair)
                 docID = pair[0]
                 docfreq = pair[1]
                 # find the docID index in score[]
