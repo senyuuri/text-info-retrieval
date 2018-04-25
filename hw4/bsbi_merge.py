@@ -28,7 +28,7 @@ fp = open('spimi_postings.txt', 'w')
 start_time = time.time()
 # merge document lists
 for i in range(1, 19):
-    filename = 'tmp/doclist' + str(i) + '.txt'
+    filename = 'tmp/doclist_' + str(i) + '.txt'
 
     with open(filename, 'r') as fopen:
         # read docID and length
