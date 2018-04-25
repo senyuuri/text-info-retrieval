@@ -109,12 +109,13 @@ for query in queries:
     q_tokens = nltk.word_tokenize(query)
     for t in q_tokens:
         t = porter.stem(t.lower()).replace('.','')
-        # DEBUG
-        t = t + '$'
-        if t not in tf_raw_query:
-            tf_raw_query[t] = 1
-        else:
-            tf_raw_query[t] += 1
+        tag_list = ['#', '&', '$']
+        for tag in tag_list:
+            tag_t = t + tag
+            if tag_t not in tf_raw_query:
+                tf_raw_query[tag_t] = 1
+            else:
+                tf_raw_query[tag_t] += 1
 
     if DEBUG:
         print("tf_raw_query", tf_raw_query)
@@ -152,7 +153,12 @@ for query in queries:
                 # calculate document weight, using tf-wt for lnc.ltc
                 w_doc = 1 + math.log(docfreq, 10)
                 # add to doc score
-                score[idx] += w_term * w_doc
+                # give TITLE and COURT zone more weightage
+                if(term[-1] == '#' or term[-1] == '&'):
+                    score[idx] += w_term * w_doc * 1.5
+                else:
+                    score[idx] += w_term * w_doc
+                
 
                 if DEBUG:
                     print('docID', docID, 'docfreq', docfreq, 'idx', idx, 'w_doc', w_doc, 'doc_len', doclist[idx][1])
