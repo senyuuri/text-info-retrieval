@@ -27,7 +27,7 @@ fp = open('spimi_postings.txt', 'w')
         
 start_time = time.time()
 # merge document lists
-for i in range(1, 3):
+for i in range(1, 19):
     filename = 'tmp/doclist' + str(i) + '.txt'
 
     with open(filename, 'r') as fopen:
@@ -45,7 +45,7 @@ print('Merge completed in '+str(time.time() - start_time)+' seconds.')
 h = []
 
 # load postings list in blocks
-for i in range(1, 3):
+for i in range(1, 19):
     filename = 'tmp/postings_' + str(i) + '.json'
     print('Loading postings part '+ str(i) +'/18')
     with open(filename, 'r') as fopen:

@@ -14,10 +14,8 @@ from operator import itemgetter
 
 # Optional features
 DEBUG = False
-QUERY_EXPANSION = False
+QUERY_EXPANSION = True
 ZONE_SENSITIVE = True
-
-
 
 def usage():
     print("usage: " + sys.argv[0] + " -d dictionary-file -p postings-file -q file-of-queries -o output-file-of-results")
@@ -63,12 +61,8 @@ with open(dictionary_file, 'r') as fd:
     lines = fd.readlines()
     for line in lines:
         parts = line.split(',')
-        # dictionary[term] = [df, pointer]
-        # print(parts)
         dic[parts[0]] = [int(parts[1]), int(parts[2])]
         
-# print('dic', dic)
-# print('doclist',doclist)
 
 # create dict index for doclist
 # so that we can quickly get the index of a docID in doclist
@@ -96,20 +90,20 @@ queries = [x.strip() for x in raw_query.replace('AND',' ').split(' ')]
 expanded = []
 if QUERY_EXPANSION:
     for query in queries:
-        print('expanding: '+query)
+        #print('expanding: '+query)
         terms = query.split(' ') 
         for t in terms:
             syn = wordnet.synsets(t)[0]
             lemmas = syn.lemmas()
             for i in range(len(lemmas)):
                 if query != lemmas[i].name():
-                    print(query + '->' + lemmas[i].name())
+                    #print(query + '->' + lemmas[i].name())
                     expanded.append(lemmas[i].name())
     queries = queries + expanded
 
 
 for query in queries:
-    print('Original query:' + query)
+    # print('Original query:' + query)
     # process query term
     tf_raw_query = {}
     q_tokens = nltk.word_tokenize(query)
@@ -140,14 +134,11 @@ for query in queries:
 
             plist = []
             plist_raw = line.split(';')
-            print(plist_raw)
             for p in plist_raw:
                 parts = p.split(',')
                 plist.append([int(parts[0]), int(parts[1])])
-            #print('#plist', plist)
 
             for pair in plist:
-                print(pair)
                 docID = pair[0]
                 docfreq = pair[1]
                 # find the docID index in score[]
