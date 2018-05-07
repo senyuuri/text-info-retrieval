@@ -1,5 +1,5 @@
 ### CS3245 Information Retrieval
-My solutions for NUS CS3245 Projects.
+This folder contains my *CS3245 Information Retrieval* course projects.
 
 [Hw1: Language Recognition Using Character-based 4-gram Model](https://github.com/senyuuri/cs3245-information-retrieval/tree/master/hw1) 
 
